@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>치과 증례 기록 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        /* 로그인 화면 */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            padding: 50px 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            text-align: center;
+            color: #1a365d;
+            margin-bottom: 40px;
+            font-size: 28px;
+        }
+
+        .login-box h1::before {
+            content: "🦷";
+            display: block;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2d5a87;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 54, 93, 0.4);
+        }
+
+        /* 메인 앱 컨테이너 */
+        .app-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* 헤더 */
+        .header {
+            background: white;
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a365d;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+        }
+
+        /* 메인 콘텐츠 */
+        .main-content {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 25px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 환자 목록 화면 */
+        .patient-list-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-box input {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            width: 250px;
+            font-size: 14px;
+        }
+
+        .tag-filter {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tag-filter label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .tag-filter select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+
+        .add-patient-btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .add-patient-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* 환자 카드 그리드 */
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+
+        .patient-card {
+            background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+            color: white;
+            padding: 40px 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .patient-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .patient-card .name {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .patient-card .id {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        .patient-card .tags {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            padding: 0 10px;
+        }
+
+        .mini-tag {
+            font-size: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* 환자 상세 화면 */
+        .patient-detail-section {
+            display: none;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .patient-header {
+            background: white;
+            border-radius: 12px;
+            padding: 25px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .patient-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .patient-info h2 {
+            font-size: 28px;
+            color: #1a365d;
+            margin-bottom: 5px;
+        }
+
+        .patient-info .chart-number {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .patient-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .tag {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag .remove-tag {
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        .tag .remove-tag:hover {
+            opacity: 1;
+        }
+
+        .add-tag-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: 2px dashed #a0aec0;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .patient-notes {
+            margin-top: 15px;
+        }
+
+        .patient-notes label {
+            font-weight: 600;
+            color: #666;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .patient-notes textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* 타임라인 */
+        .timeline-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .timeline-header h3 {
+            font-size: 20px;
+            color: #1a365d;
+        }
+
+        .timeline-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .add-record-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .five-split-toggle {
+            padding: 12px 24px;
+            background: #805ad5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .five-split-toggle.active {
+            background: #6b46c1;
+        }
+
+        /* 타임라인 막대 */
+        .timeline-bar {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        .timeline-point {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .timeline-point::after {
+            content: '';
+            position: absolute;
+            top: 35px;
+            left: 60px;
+            width: calc(100% - 60px);
+            height: 3px;
+            background: #cbd5e0;
+        }
+
+        .timeline-point:last-child::after {
+            display: none;
+        }
+
+        .timeline-dot {
+            width: 20px;
+            height: 20px;
+            background: #2d5a87;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            border: 4px solid #e2e8f0;
+            transition: transform 0.2s;
+            z-index: 1;
+        }
+
+        .timeline-point:hover .timeline-dot {
+            transform: scale(1.3);
+        }
+
+        .timeline-point.selected .timeline-dot {
+            background: #38a169;
+            transform: scale(1.3);
+        }
+
+        .timeline-date {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+
+        .timeline-label {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* 증례 상세 */
+        .record-detail {
+            border-top: 2px solid #e2e8f0;
+            padding-top: 25px;
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .record-date {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a365d;
+        }
+
+        .record-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .edit-btn, .delete-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .edit-btn {
+            background: #4299e1;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #e53e3e;
+            color: white;
+        }
+
+        /* 이미지 그리드 */
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .images-grid.five-split {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .image-item {
+            position: relative;
+            aspect-ratio: 4/3;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            background: #f0f0f0;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-item:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .record-memo {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .record-memo h4 {
+            color: #1a365d;
+            margin-bottom: 10px;
+        }
+
+        .record-memo p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h3 {
+            font-size: 22px;
+            color: #1a365d;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .modal-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .modal-form input,
+        .modal-form textarea,
+        .modal-form select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .modal-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .file-upload-area {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #4299e1;
+            background: #f7fafc;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #38a169;
+            background: #f0fff4;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .preview-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-item .remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* 이미지 뷰어 모달 */
+        .image-viewer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .image-viewer.active {
+            display: flex;
+        }
+
+        .image-viewer img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .image-viewer .close-viewer {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+        }
+
+        .image-viewer .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 20px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .image-viewer .prev-btn {
+            left: 20px;
+        }
+
+        .image-viewer .next-btn {
+            right: 20px;
+        }
+
+        /* 로컬 저장 안내 */
+        .storage-notice {
+            background: #fefcbf;
+            border: 1px solid #d69e2e;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .storage-notice .icon {
+            font-size: 24px;
+        }
+
+        .folder-select-btn {
+            padding: 10px 20px;
+            background: #2d5a87;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box input {
+                width: 100%;
+            }
+
+            .patient-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .images-grid.five-split {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 로그인 화면 -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-box">
+            <h1>치과 증례 기록</h1>
+            <div class="form-group">
+                <label>아이디</label>
+                <input type="text" id="loginId" placeholder="아이디를 입력하세요">
+            </div>
+            <div class="form-group">
+                <label>비밀번호</label>
+                <input type="password" id="loginPw" placeholder="비밀번호를 입력하세요">
+            </div>
+            <button class="login-btn" onclick="login()">로그인</button>
+        </div>
+    </div>
+
+    <!-- 메인 앱 -->
+    <div class="app-container" id="appContainer">
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">🦷 치과 증례 기록</div>
+            </div>
+            <div class="header-right">
+                <span class="user-info" id="userNameDisplay">사용자 님</span>
+                <button class="logout-btn" onclick="logout()">로그아웃</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- 환자 목록 섹션 -->
+            <div class="patient-list-section" id="patientListSection">
+                <h2 class="page-title" id="pageTitle">사용자 님의 증례 목록입니다.</h2>
+                
+                <div class="storage-notice">
+                    <span class="icon">📁</span>
+                    <span>데이터는 브라우저 로컬 저장소에 저장됩니다. 백업을 위해 내보내기 기능을 사용하세요.</span>
+                    <button class="folder-select-btn" onclick="exportData()">데이터 내보내기</button>
+                    <button class="folder-select-btn" onclick="importData()" style="margin-left:10px;">데이터 가져오기</button>
+                </div>
+
+                <div class="controls-bar">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="환자명 또는 진료번호 검색..." oninput="filterPatients()">
+                    </div>
+                    <div class="tag-filter">
+                        <label>태그:</label>
+                        <select id="tagFilter" onchange="filterPatients()">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <button class="add-patient-btn" onclick="openAddPatientModal()">+ 새 환자 등록</button>
+                </div>
+
+                <div class="patient-grid" id="patientGrid">
+                    <!-- 환자 카드들이 여기에 동적으로 생성됨 -->
+                </div>
+            </div>
+
+            <!-- 환자 상세 섹션 -->
+            <div class="patient-detail-section" id="patientDetailSection">
+                <button class="back-btn" onclick="showPatientList()">← 목록으로 돌아가기</button>
+                
+                <div class="patient-header">
+                    <div class="patient-header-top">
+                        <div class="patient-info">
+                            <h2 id="patientName">환자명</h2>
+                            <span class="chart-number" id="chartNumber">진료번호: </span>
+                        </div>
+                        <button class="edit-btn" onclick="openEditPatientModal()">환자 정보 수정</button>
+                    </div>
+                    <div class="patient-tags" id="patientTags">
+                        <!-- 태그들 -->
+                    </div>
+                    <div class="patient-notes">
+                        <label>특이 사항</label>
+                        <textarea id="patientNotes" placeholder="특이사항을 입력하세요..." onchange="savePatientNotes()"></textarea>
+                    </div>
+                </div>
+
+                <div class="timeline-container">
+                    <div class="timeline-header">
+                        <h3>📅 진료 타임라인</h3>
+                        <div class="timeline-actions">
+                            <button class="five-split-toggle" id="fiveSplitToggle" onclick="toggleFiveSplit()">5분할 모드 OFF</button>
+                            <button class="add-record-btn" onclick="openAddRecordModal()">+ 새 증례 기록</button>
+                        </div>
+                    </div>
+
+                    <div class="timeline-bar" id="timelineBar">
+                        <!-- 타임라인 포인트들 -->
+                    </div>
+
+                    <div class="record-detail" id="recordDetail">
+                        <!-- 선택된 증례 상세 정보 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 환자 추가 모달 -->
+    <div class="modal" id="addPatientModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>새 환자 등록</h3>
+                <button class="modal-close" onclick="closeModal('addPatientModal')">&times;</button>
+            </div>
+            <form class="modal-form" onsubmit="addPatient(event)">
+                <div class="form-group">
+                    <label>환자명 *</label>
+                    <input type="text" id="newPatientName" required>
+                </div>
+                <div class="form-group">
+                    <label>진료번호 *</label>
+                    <input type="text" id="newPatientChartNo" required>
+                </div>
+                <div class="form-group">
+                    <label>태그 (쉼표로 구분)</label>
+                    <input type="text" id="newPatientTags" placeholder="고혈압, 당뇨">
+                </div>
+                <div class="form-group">
+                    <label>특이사항</label>
+                    <textarea id="newPatientNotes" placeholder="특이사항을 입력하세요..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">등록하기</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 증례 추가 모달 -->
+    <div class="modal" id="addRecordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>새 증례 기록</h3>
+                <button class="modal-close" onclick="closeModal('addRecordModal')">&times;</button>
+            </div>
+            <form class="modal-form" onsubmit="addRecord(event)">
+                <div class="form-group">
+                    <label>진료일 *</label>
+                    <input type="date" id="recordDate" required>
+                </div>
+                <div class="form-group">
+                    <label>방문 유형</label>
+                    <select id="recordType">
+                        <option value="초진">초진</option>
+                        <option value="재진">재진</option>
+                        <option value="정기검진">정기검진</option>
+                        <option value="응급">응급</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>사진 첨부</label>
+                    <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('photoInput').click()">
+                        <div class="upload-icon">📷</div>
+                        <p>클릭하거나 파일을 드래그하세요</p>
+                        <p style="font-size:12px;color:#999;margin-top:5px;">여러 장 선택 가능</p>
+                    </div>
+                    <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+                    <div class="preview-images" id="previewImages"></div>
+                </div>
+                <div class="form-group">
+                    <label>메모</label>
+                    <textarea id="recordMemo" placeholder="진료 내용, 처치 사항 등을 기록하세요..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">기록 저장</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 태그 추가 모달 -->
+    <div class="modal" id="addTagModal">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>태그 추가</h3>
+                <button class="modal-close" onclick="closeModal('addTagModal')">&times;</button>
+            </div>
+            <form class="modal-form" onsubmit="addTag(event)">
+                <div class="form-group">
+                    <label>새 태그</label>
+                    <input type="text" id="newTagName" placeholder="태그명 입력" required>
+                </div>
+                <button type="submit" class="submit-btn">추가</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 이미지 뷰어 -->
+    <div class="image-viewer" id="imageViewer">
+        <span class="close-viewer" onclick="closeImageViewer()">&times;</span>
+        <button class="nav-btn prev-btn" onclick="prevImage()">❮</button>
+        <img id="viewerImage" src="" alt="">
+        <button class="nav-btn next-btn" onclick="nextImage()">❯</button>
+    </div>
+
+    <!-- 데이터 가져오기용 숨겨진 input -->
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="handleImport(event)">
+
+    <script>
+        // ===== 전역 변수 =====
+        let currentUser = null;
+        let patients = [];
+        let currentPatient = null;
+        let currentRecord = null;
+        let selectedFiles = [];
+        let fiveSplitMode = false;
+        let viewerImages = [];
+        let viewerIndex = 0;
+
+        // ===== 초기화 =====
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setupDragDrop();
+            
+            // 자동 로그인 체크
+            const savedUser = localStorage.getItem('dentalCaseUser');
+            if (savedUser) {
+                currentUser = savedUser;
+                showApp();
+            }
+        });
+
+        // ===== 인증 =====
+        function login() {
+            const id = document.getElementById('loginId').value.trim();
+            const pw = document.getElementById('loginPw').value;
+            
+            if (!id) {
+                alert('아이디를 입력하세요.');
+                return;
+            }
+            
+            // 간단한 로그인 (실제 환경에서는 서버 인증 필요)
+            currentUser = id;
+            localStorage.setItem('dentalCaseUser', id);
+            showApp();
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('dentalCaseUser');
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('userNameDisplay').textContent = currentUser + ' 님';
+            document.getElementById('pageTitle').textContent = currentUser + ' 님의 증례 목록입니다.';
+            renderPatientList();
+            updateTagFilter();
+        }
+
+        // ===== 데이터 관리 =====
+        function loadData() {
+            const saved = localStorage.getItem('dentalCaseData');
+            if (saved) {
+                patients = JSON.parse(saved);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('dentalCaseData', JSON.stringify(patients));
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(patients, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dental_cases_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            document.getElementById('importInput').click();
+        }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        if (confirm('기존 데이터를 덮어쓰시겠습니까? (취소 시 병합됩니다)')) {
+                            patients = imported;
+                        } else {
+                            // 병합 (ID 중복 체크)
+                            imported.forEach(p => {
+                                if (!patients.find(existing => existing.id === p.id)) {
+                                    patients.push(p);
+                                }
+                            });
+                        }
+                        saveData();
+                        renderPatientList();
+                        updateTagFilter();
+                        alert('데이터를 성공적으로 가져왔습니다.');
+                    }
+                } catch (err) {
+                    alert('파일 형식이 올바르지 않습니다.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ===== 환자 목록 =====
+        function renderPatientList() {
+            const grid = document.getElementById('patientGrid');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const tagFilter = document.getElementById('tagFilter').value;
+            
+            let filtered = patients.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(search) || 
+                                   p.chartNo.toLowerCase().includes(search);
+                const matchTag = !tagFilter || (p.tags && p.tags.includes(tagFilter));
+                return matchSearch && matchTag;
+            });
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="icon">📋</div>
+                        <h3>등록된 환자가 없습니다</h3>
+                        <p>새 환자를 등록해주세요.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(p => `
+                <div class="patient-card" onclick="openPatientDetail('${p.id}')">
+                    <div class="name">${p.name}</div>
+                    <div class="id">${p.chartNo}</div>
+                    <div class="tags">
+                        ${(p.tags || []).slice(0, 2).map(t => `<span class="mini-tag">#${t}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterPatients() {
+            renderPatientList();
+        }
+
+        function updateTagFilter() {
+            const select = document.getElementById('tagFilter');
+            const allTags = new Set();
+            patients.forEach(p => {
+                (p.tags || []).forEach(t => allTags.add(t));
+            });
+            
+            select.innerHTML = '<option value="">전체</option>' + 
+                Array.from(allTags).map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        // ===== 환자 추가/수정 =====
+        function openAddPatientModal() {
+            document.getElementById('newPatientName').value = '';
+            document.getElementById('newPatientChartNo').value = '';
+            document.getElementById('newPatientTags').value = '';
+            document.getElementById('newPatientNotes').value = '';
+            document.getElementById('addPatientModal').classList.add('active');
+        }
+
+        function addPatient(event) {
+            event.preventDefault();
+            
+            const patient = {
+                id: 'p_' + Date.now(),
+                name: document.getElementById('newPatientName').value.trim(),
+                chartNo: document.getElementById('newPatientChartNo').value.trim(),
+                tags: document.getElementById('newPatientTags').value.split(',').map(t => t.trim()).filter(t => t),
+                notes: document.getElementById('newPatientNotes').value.trim(),
+                records: [],
+                createdAt: new Date().toISOString()
+            };
+            
+            patients.push(patient);
+            saveData();
+            renderPatientList();
+            updateTagFilter();
+            closeModal('addPatientModal');
+        }
+
+        function openEditPatientModal() {
+            document.getElementById('newPatientName').value = currentPatient.name;
+            document.getElementById('newPatientChartNo').value = currentPatient.chartNo;
+            document.getElementById('newPatientTags').value = (currentPatient.tags || []).join(', ');
+            document.getElementById('newPatientNotes').value = currentPatient.notes || '';
+            
+            const modal = document.getElementById('addPatientModal');
+            modal.querySelector('h3').textContent = '환자 정보 수정';
+            modal.querySelector('.submit-btn').textContent = '수정하기';
+            modal.querySelector('form').onsubmit = (e) => updatePatient(e);
+            modal.classList.add('active');
+        }
+
+        function updatePatient(event) {
+            event.preventDefault();
+            
+            currentPatient.name = document.getElementById('newPatientName').value.trim();
+            currentPatient.chartNo = document.getElementById('newPatientChartNo').value.trim();
+            currentPatient.tags = document.getElementById('newPatientTags').value.split(',').map(t => t.trim()).filter(t => t);
+            currentPatient.notes = document.getElementById('newPatientNotes').value.trim();
+            
+            saveData();
+            renderPatientDetail();
+            closeModal('addPatientModal');
+            
+            // 모달 원복
+            const modal = document.getElementById('addPatientModal');
+            modal.querySelector('h3').textContent = '새 환자 등록';
+            modal.querySelector('.submit-btn').textContent = '등록하기';
+            modal.querySelector('form').onsubmit = (e) => addPatient(e);
+        }
+
+        // ===== 환자 상세 =====
+        function openPatientDetail(patientId) {
+            currentPatient = patients.find(p => p.id === patientId);
+            if (!currentPatient) return;
+            
+            document.getElementById('patientListSection').style.display = 'none';
+            document.getElementById('patientDetailSection').style.display = 'block';
+            
+            renderPatientDetail();
+        }
+
+        function showPatientList() {
+            document.getElementById('patientListSection').style.display = 'block';
+            document.getElementById('patientDetailSection').style.display = 'none';
+            currentPatient = null;
+            currentRecord = null;
+            renderPatientList();
+        }
+
+        function renderPatientDetail() {
+            document.getElementById('patientName').textContent = currentPatient.name;
+            document.getElementById('chartNumber').textContent = '진료번호: ' + currentPatient.chartNo;
+            document.getElementById('patientNotes').value = currentPatient.notes || '';
+            
+            // 태그 렌더링
+            const tagsContainer = document.getElementById('patientTags');
+            tagsContainer.innerHTML = (currentPatient.tags || []).map(t => 
+                `<span class="tag">#${t} <span class="remove-tag" onclick="removeTag('${t}')">&times;</span></span>`
+            ).join('') + 
+            `<button class="add-tag-btn" onclick="openAddTagModal()">+ 태그 추가</button>`;
+            
+            // 타임라인 렌더링
+            renderTimeline();
+        }
+
+        function savePatientNotes() {
+            currentPatient.notes = document.getElementById('patientNotes').value;
+            saveData();
+        }
+
+        // ===== 태그 관리 =====
+        function openAddTagModal() {
+            document.getElementById('newTagName').value = '';
+            document.getElementById('addTagModal').classList.add('active');
+        }
+
+        function addTag(event) {
+            event.preventDefault();
+            const tagName = document.getElementById('newTagName').value.trim();
+            if (!tagName) return;
+            
+            if (!currentPatient.tags) currentPatient.tags = [];
+            if (!currentPatient.tags.includes(tagName)) {
+                currentPatient.tags.push(tagName);
+                saveData();
+                renderPatientDetail();
+                updateTagFilter();
+            }
+            closeModal('addTagModal');
+        }
+
+        function removeTag(tagName) {
+            currentPatient.tags = (currentPatient.tags || []).filter(t => t !== tagName);
+            saveData();
+            renderPatientDetail();
+            updateTagFilter();
+        }
+
+        // ===== 타임라인 =====
+        function renderTimeline() {
+            const bar = document.getElementById('timelineBar');
+            const records = currentPatient.records || [];
+            
+            if (records.length === 0) {
+                bar.innerHTML = '<div class="empty-state" style="width:100%;"><p>아직 기록된 증례가 없습니다.</p></div>';
+                document.getElementById('recordDetail').innerHTML = '';
+                return;
+            }
+            
+            // 날짜순 정렬
+            const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            bar.innerHTML = sorted.map((r, idx) => {
+                const date = new Date(r.date);
+                const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.`;
+                const elapsed = calculateElapsed(sorted[0].date, r.date);
+                const isSelected = currentRecord && currentRecord.id === r.id;
+                
+                return `
+                    <div class="timeline-point ${isSelected ? 'selected' : ''}" onclick="selectRecord('${r.id}')">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-date">${dateStr}</div>
+                        <div class="timeline-label">${idx === 0 ? r.type || '초진' : elapsed}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // 첫 번째 기록 선택
+            if (!currentRecord && sorted.length > 0) {
+                selectRecord(sorted[sorted.length - 1].id);
+            } else if (currentRecord) {
+                renderRecordDetail();
+            }
+        }
+
+        function calculateElapsed(startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+            const years = Math.floor(months / 12);
+            const remainMonths = months % 12;
+            
+            if (years > 0 && remainMonths > 0) {
+                return `${years}Y${remainMonths}M`;
+            } else if (years > 0) {
+                return `${years}Y`;
+            } else {
+                return `${months}M`;
+            }
+        }
+
+        function selectRecord(recordId) {
+            currentRecord = (currentPatient.records || []).find(r => r.id === recordId);
+            renderTimeline();
+            renderRecordDetail();
+        }
+
+        function renderRecordDetail() {
+            if (!currentRecord) {
+                document.getElementById('recordDetail').innerHTML = '';
+                return;
+            }
+            
+            const date = new Date(currentRecord.date);
+            const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}`;
+            
+            const imagesHtml = (currentRecord.images || []).map((img, idx) => `
+                <div class="image-item" onclick="openImageViewer(${idx})">
+                    <img src="${img}" alt="증례 사진 ${idx+1}">
+                </div>
+            `).join('');
+            
+            document.getElementById('recordDetail').innerHTML = `
+                <div class="record-header">
+                    <div class="record-date">${dateStr} ${currentRecord.type ? `(${currentRecord.type})` : ''}</div>
+                    <div class="record-actions">
+                        <button class="edit-btn" onclick="editRecord()">수정</button>
+                        <button class="delete-btn" onclick="deleteRecord()">삭제</button>
+                    </div>
+                </div>
+                <div class="images-grid ${fiveSplitMode ? 'five-split' : ''}" id="imagesGrid">
+                    ${imagesHtml || '<p style="color:#999;grid-column:1/-1;text-align:center;">첨부된 사진이 없습니다.</p>'}
+                </div>
+                ${currentRecord.memo ? `
+                    <div class="record-memo">
+                        <h4>📝 메모</h4>
+                        <p>${currentRecord.memo.replace(/\n/g, '<br>')}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            // 이미지 뷰어용 데이터 설정
+            viewerImages = currentRecord.images || [];
+        }
+
+        function toggleFiveSplit() {
+            fiveSplitMode = !fiveSplitMode;
+            const btn = document.getElementById('fiveSplitToggle');
+            btn.textContent = `5분할 모드 ${fiveSplitMode ? 'ON' : 'OFF'}`;
+            btn.classList.toggle('active', fiveSplitMode);
+            
+            const grid = document.getElementById('imagesGrid');
+            if (grid) {
+                grid.classList.toggle('five-split', fiveSplitMode);
+            }
+        }
+
+        // ===== 증례 기록 추가 =====
+        function openAddRecordModal() {
+            document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('recordType').value = '재진';
+            document.getElementById('recordMemo').value = '';
+            document.getElementById('previewImages').innerHTML = '';
+            selectedFiles = [];
+            document.getElementById('addRecordModal').classList.add('active');
+        }
+
+        function setupDragDrop() {
+            const dropArea = document.getElementById('fileUploadArea');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'));
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'));
+            });
+            
+            dropArea.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                handleFiles(files);
+            });
+        }
+
+        function handleFileSelect(event) {
+            handleFiles(event.target.files);
+        }
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    selectedFiles.push(e.target.result);
+                    renderPreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPreviews() {
+            const container = document.getElementById('previewImages');
+            container.innerHTML = selectedFiles.map((src, idx) => `
+                <div class="preview-item">
+                    <img src="${src}" alt="미리보기 ${idx+1}">
+                    <button class="remove" onclick="removePreview(${idx})">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function removePreview(idx) {
+            selectedFiles.splice(idx, 1);
+            renderPreviews();
+        }
+
+        function addRecord(event) {
+            event.preventDefault();
+            
+            const record = {
+                id: 'r_' + Date.now(),
+                date: document.getElementById('recordDate').value,
+                type: document.getElementById('recordType').value,
+                memo: document.getElementById('recordMemo').value.trim(),
+                images: [...selectedFiles],
+                createdAt: new Date().toISOString()
+            };
+            
+            if (!currentPatient.records) currentPatient.records = [];
+            currentPatient.records.push(record);
+            
+            saveData();
+            currentRecord = record;
+            renderTimeline();
+            closeModal('addRecordModal');
+            selectedFiles = [];
+        }
+
+        function editRecord() {
+            if (!currentRecord) return;
+            
+            document.getElementById('recordDate').value = currentRecord.date;
+            document.getElementById('recordType').value = currentRecord.type || '재진';
+            document.getElementById('recordMemo').value = currentRecord.memo || '';
+            selectedFiles = [...(currentRecord.images || [])];
+            renderPreviews();
+            
+            const modal = document.getElementById('addRecordModal');
+            modal.querySelector('h3').textContent = '증례 기록 수정';
+            modal.querySelector('.submit-btn').textContent = '수정 저장';
+            modal.querySelector('form').onsubmit = (e) => updateRecord(e);
+            modal.classList.add('active');
+        }
+
+        function updateRecord(event) {
+            event.preventDefault();
+            
+            currentRecord.date = document.getElementById('recordDate').value;
+            currentRecord.type = document.getElementById('recordType').value;
+            currentRecord.memo = document.getElementById('recordMemo').value.trim();
+            currentRecord.images = [...selectedFiles];
+            
+            saveData();
+            renderTimeline();
+            closeModal('addRecordModal');
+            
+            // 모달 원복
+            const modal = document.getElementById('addRecordModal');
+            modal.querySelector('h3').textContent = '새 증례 기록';
+            modal.querySelector('.submit-btn').textContent = '기록 저장';
+            modal.querySelector('form').onsubmit = (e) => addRecord(e);
+            selectedFiles = [];
+        }
+
+        function deleteRecord() {
+            if (!confirm('이 증례 기록을 삭제하시겠습니까?')) return;
+            
+            currentPatient.records = currentPatient.records.filter(r => r.id !== currentRecord.id);
+            currentRecord = null;
+            saveData();
+            renderTimeline();
+        }
+
+        // ===== 이미지 뷰어 =====
+        function openImageViewer(idx) {
+            if (viewerImages.length === 0) return;
+            viewerIndex = idx;
+            document.getElementById('viewerImage').src = viewerImages[viewerIndex];
+            document.getElementById('imageViewer').classList.add('active');
+        }
+
+        function closeImageViewer() {
+            document.getElementById('imageViewer').classList.remove('active');
+        }
+
+        function prevImage() {
+            viewerIndex = (viewerIndex - 1 + viewerImages.length) % viewerImages.length;
+            document.getElementById('viewerImage').src = viewerImages[viewerIndex];
+        }
+
+        function nextImage() {
+            viewerIndex = (viewerIndex + 1) % viewerImages.length;
+            document.getElementById('viewerImage').src = viewerImages[viewerIndex];
+        }
+
+        // 키보드 네비게이션
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('imageViewer').classList.contains('active')) return;
+            if (e.key === 'Escape') closeImageViewer();
+            if (e.key === 'ArrowLeft') prevImage();
+            if (e.key === 'ArrowRight') nextImage();
+        });
+
+        // ===== 모달 =====
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // 모달 외부 클릭 시 닫기
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
