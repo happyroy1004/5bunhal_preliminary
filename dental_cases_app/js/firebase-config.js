@@ -4,6 +4,7 @@ import { getFirestore } from "[gstatic.com](https://www.gstatic.com/firebasejs/1
 import { getStorage } from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js)";
 
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDDgxGwU52bmXXTC5NTk0zzbc4XTxNBRYU",
   authDomain: "dentalcaseapp.firebaseapp.com",
