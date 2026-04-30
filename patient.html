@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/patient.js"></script>
+</head>
+<body>
+  <header class="main-header">
+    <button onclick="history.back()">← 목록으로</button>
+    <h2 id="patientName"></h2>
+  </header>
+
+  <main class="timeline-container">
+    <div>
+      <button id="addRecordBtn">+ 새 증례 기록</button>
+      <button id="fiveSplitBtn">5분할 모드 OFF</button>
+    </div>
+
+    <div id="recordTimeline" class="timeline"></div>
+    <div id="recordView" class="record-view"></div>
+  </main>
+</body>
+</html>
