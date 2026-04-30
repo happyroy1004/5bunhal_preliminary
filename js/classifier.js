@@ -1,8 +1,7 @@
 // js/classifier.js
 
 // ──────────────────────────────────────────
-// 클래스 상수 (파이썬 class_names 순서 반영)
-// ['upper', 'left', 'front', 'right', 'lower']
+// 클래스 상수
 // ──────────────────────────────────────────
 export const CLASS_NAME_KR = {
   1: "상악",
@@ -20,7 +19,7 @@ export const CLASS_POSITION_CSS = {
   5: "pos-lower",
 };
 
-// 파이썬 Index(0~4) -> 화면 ID(1~5) 매핑표
+// 예측된 Index(0~4)를 화면 ID(1~5)로 매핑
 const INDEX_TO_CLASS_ID = {
   0: 1, // upper
   1: 2, // left
@@ -37,7 +36,6 @@ let loadedModel = null;
 async function loadModel() {
   if (!loadedModel) {
     try {
-      // 💡 models 폴더 안의 model.json 파일 로드
       loadedModel = await tf.loadGraphModel('./models/model.json');
       console.log("✅ AI 모델 로드 완료!");
     } catch (e) {
@@ -48,7 +46,7 @@ async function loadModel() {
 }
 
 // ──────────────────────────────────────────
-// AI 분류 함수 (PyTorch 호환 완벽 적용)
+// AI 분류 함수 (Roboflow tfjs 모델 전용)
 // ──────────────────────────────────────────
 export async function classifyImage(file) {
   const model = await loadModel();
@@ -63,41 +61,32 @@ export async function classifyImage(file) {
     
     img.onload = async () => {
       try {
-        // 1. 파이썬 transforms.Resize((224, 224)) 와 동일하게 세팅
-        const IMG_SIZE = 224; 
+        // 💡 1. 에러의 원인 해결: 사이즈를 640으로 변경!
+        const IMG_SIZE = 640; 
 
-        // 2. 텐서 변환 및 전처리 (tf.tidy로 메모리 누수 방지)
+        // 2. 텐서 변환 및 전처리 (tf.tidy로 메모리 관리)
         const tensor = tf.tidy(() => {
-          // A. 브라우저 이미지를 텐서로 변환하고 224x224로 리사이즈 
-          // 💡 PyTorch 기본 리사이즈 방식인 Bilinear 사용!
+          // 💡 2. 에러의 원인 해결: 차원 변경(transpose) 제거, 오직 0~1 스케일링만 적용
+          // 결과 형태: [1, 640, 640, 3] 이 되어 모델이 원하는 스펙과 정확히 일치함!
           let imgTensor = tf.browser.fromPixels(img)
             .resizeBilinear([IMG_SIZE, IMG_SIZE])
             .toFloat()
-            .div(tf.scalar(255.0)); // ToTensor() 의 0~1 정규화
+            .div(tf.scalar(255.0))
+            .expandDims(0); 
 
-          // B. RGB 채널별 정규화 (파이썬 transforms.Normalize)
-          const mean = tf.tensor1d([0.485, 0.456, 0.406]);
-          const std = tf.tensor1d([0.229, 0.224, 0.225]);
-          imgTensor = imgTensor.sub(mean).div(std);
-
-          // C. ⭐️ 가장 중요한 부분: PyTorch 형식(NCHW)으로 차원 순서 변경!
-          // 웹(HWC: 0,1,2) -> 파이썬(CHW: 2,0,1)
-          imgTensor = imgTensor.transpose([2, 0, 1]);
-
-          // D. 배치 차원 추가 -> [1, 3, 224, 224] 형태로 최종 완성
-          return imgTensor.expandDims(0);
+          return imgTensor;
         });
 
         // 3. AI 모델 예측 실행
         const predictions = await model.predict(tensor);
         const data = await predictions.data(); 
 
-        // 텐서 메모리 해제
+        // 메모리 해제
         tensor.dispose();
         predictions.dispose();
 
         // 4. 가장 확률이 높은 클래스 찾기
-        let maxProb = -Infinity; // 초기값을 가장 낮게 설정
+        let maxProb = -Infinity;
         let maxIndex = 0;
         for (let i = 0; i < data.length; i++) {
           if (data[i] > maxProb) {
@@ -106,16 +95,15 @@ export async function classifyImage(file) {
           }
         }
 
-        // 5. 파이썬 Index(0~4) -> 뷰어 ID(1~5) 변환
+        // 5. Index(0~4) -> 뷰어 ID(1~5) 변환
         let predictedClass = INDEX_TO_CLASS_ID[maxIndex];
         
-        console.log(`💡 AI 분석 완료! | 파이썬 Index: ${maxIndex} | 화면위치: ${predictedClass}번 | 모델 원본 출력값:`, data);
+        console.log(`💡 AI 분석 완료! | 분류결과: ${predictedClass}번 위치 (${CLASS_NAME_KR[predictedClass]}) | 확률: ${(maxProb * 100).toFixed(1)}%`);
         
         resolve(predictedClass);
 
       } catch (err) {
         console.error("❌ AI 분류 중 치명적 에러 발생:", err);
-        // 에러가 나면 1~5 랜덤 반환
         resolve(Math.floor(Math.random() * 5) + 1); 
       }
     };
