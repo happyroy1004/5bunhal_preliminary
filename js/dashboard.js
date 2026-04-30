@@ -18,7 +18,6 @@ const sectionList = document.getElementById("patientListSection");
 const sectionDetail = document.getElementById("patientDetailSection");
 const backToListBtn = document.getElementById("backToListBtn");
 
-// 모달들
 const patientModal = document.getElementById("addPatientModal");
 const addPatientBtn = document.getElementById("addPatientBtn");
 const addPatientForm = document.getElementById("addPatientForm");
@@ -165,7 +164,6 @@ function renderPatients() {
     const matchSearch = p.name.toLowerCase().includes(searchTerm) || p.chartNumber.toLowerCase().includes(searchTerm);
     let matchTag = true;
     if (selectedTagsFilter.size > 0) {
-      // 💡 [핵심] 교집합(AND) 로직: 선택된 모든 태그가 환자의 태그에 포함되어 있어야 함
       matchTag = Array.from(selectedTagsFilter).every(t => p.tags && p.tags.includes(t));
     }
     return matchSearch && matchTag;
@@ -178,7 +176,6 @@ function renderPatients() {
 
   filtered.forEach(p => {
     const tagsHtml = (p.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
-    const infoText = [p.gender, p.age ? `${p.age}세` : ''].filter(Boolean).join(' / ');
     
     const card = document.createElement("div");
     card.className = "patient-card";
@@ -212,7 +209,7 @@ addPatientForm.onsubmit = async (e) => {
 
   const newPatient = {
     id: Date.now().toString(), chartNumber: chart, name: name, 
-    initialVisitDate: initialVisit, tags: tags, records: []
+    initialVisitDate: initialVisit, tags: tags, notes: "", records: []
   };
 
   try {
@@ -248,7 +245,7 @@ editPatientForm.onsubmit = async (e) => {
   showNotification("환자 정보가 수정되었습니다.");
 };
 
-// ====== 5. 임상 사진 상세 & 타임라인 간격 계산 ======
+// ====== 5. 임상 사진 상세 & 메모 저장 (두 파트 분리) ======
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none"; sectionList.style.display = "block"; activePatient = null;
 };
@@ -261,10 +258,20 @@ function openPatientDetail(patient) {
   document.getElementById("detailChartNo").innerText = `진료번호: ${patient.chartNumber} | 초진일: ${patient.initialVisitDate || '미설정'}`;
   document.getElementById("detailTags").innerHTML = (patient.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
   
+  // 💡 환자 전체 특이사항 불러오기
+  document.getElementById("globalPatientMemo").value = patient.notes || "";
+  
   renderTimeline();
 }
 
-// 💡 날짜 간격을 계산하는 디테일한 함수 (1Y, 3M, 2W, 5D 등)
+// 💡 환자 전체 특이사항 저장 버튼 로직
+document.getElementById("saveGlobalMemoBtn").onclick = async () => {
+  if (!activePatient) return;
+  activePatient.notes = document.getElementById("globalPatientMemo").value;
+  await savePatientsData();
+  showNotification("환자의 전체 특이사항이 안전하게 저장되었습니다.");
+};
+
 function getExactInterval(d1Str, d2Str) {
   const date1 = new Date(d1Str); const date2 = new Date(d2Str);
   const diffDays = Math.floor((date2 - date1) / (1000 * 60 * 60 * 24));
@@ -274,8 +281,8 @@ function getExactInterval(d1Str, d2Str) {
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}W`;
   
   let months = (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
-  if (date2.getDate() < date1.getDate()) months--; // 일수 부족 시 한달 빼기
-  if (months === 0) return `${Math.floor(diffDays / 7)}W`;
+  if (date2.getDate() < date1.getDate()) months--; 
+  if (months <= 0) return `${Math.floor(diffDays / 7)}W`;
   
   let y = Math.floor(months / 12); let m = months % 12;
   return (y > 0 ? y + "Y " : "") + (m > 0 ? m + "M" : "");
@@ -289,6 +296,7 @@ function renderTimeline() {
     tBar.innerHTML = "<div style='color:#64748B;'>새 증례를 추가해주세요.</div>";
     document.getElementById("photoViewerArea").innerHTML = "";
     document.getElementById("currentRecordDate").innerText = "날짜를 선택하세요";
+    document.getElementById("recordMemoTitleDate").innerText = "진료일";
     document.getElementById("currentRecordMemo").value = "";
     activeRecord = null;
     return;
@@ -296,7 +304,6 @@ function renderTimeline() {
 
   activePatient.records.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-  // 1. 초진일이 실제 사진(records)보다 먼저일 경우, 스타트 포인트로 강제 렌더링
   let hasInitNode = false;
   if (activePatient.initialVisitDate && activePatient.records[0].date > activePatient.initialVisitDate) {
     const initBox = document.createElement("div");
@@ -307,9 +314,7 @@ function renderTimeline() {
     hasInitNode = true;
   }
 
-  // 2. 실제 증례들 렌더링 (사이에 선 연결 포함)
   activePatient.records.forEach((record, index) => {
-    // 이전 노드가 있다면, 연결선과 사이 간격(Interval) 렌더링
     if (index > 0 || hasInitNode) {
       const prevDate = (index === 0) ? activePatient.initialVisitDate : activePatient.records[index - 1].date;
       const interval = getExactInterval(prevDate, record.date);
@@ -320,7 +325,6 @@ function renderTimeline() {
       tBar.appendChild(connector);
     }
 
-    // 현재 기록 노드 렌더링
     const box = document.createElement("div");
     box.className = "timeline-item";
     let label = (activePatient.initialVisitDate && record.date === activePatient.initialVisitDate) ? "초진" : "진료";
@@ -334,7 +338,6 @@ function renderTimeline() {
     tBar.appendChild(box);
   });
 
-  // 클릭 가능한 노드 중 최신 기록 자동 클릭
   const items = tBar.querySelectorAll(".timeline-item:not([style*='opacity'])");
   if(items.length > 0) items[items.length - 1].click(); 
 }
@@ -342,6 +345,9 @@ function renderTimeline() {
 async function loadPhotosForRecord(record) {
   activeRecord = record; 
   document.getElementById("currentRecordDate").innerText = record.date;
+  
+  // 💡 진료일별 메모 불러오기 및 타이틀 변경
+  document.getElementById("recordMemoTitleDate").innerText = record.date;
   document.getElementById("currentRecordMemo").value = record.memo || "";
   
   const viewer = document.getElementById("photoViewerArea");
@@ -367,11 +373,12 @@ async function loadPhotosForRecord(record) {
   }
 }
 
-document.getElementById("saveMemoBtn").onclick = async () => {
+// 💡 진료일별 차트(메모) 저장 버튼 로직
+document.getElementById("saveRecordMemoBtn").onclick = async () => {
   if (!activeRecord) { showNotification("선택된 증례가 없습니다."); return; }
   activeRecord.memo = document.getElementById("currentRecordMemo").value;
   await savePatientsData();
-  showNotification("메모가 안전하게 저장되었습니다.");
+  showNotification(`${activeRecord.date} 진료일의 차트 내용이 저장되었습니다.`);
 };
 
 document.getElementById("toggle5SplitBtn").onclick = (e) => {
