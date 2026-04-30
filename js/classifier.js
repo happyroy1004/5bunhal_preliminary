@@ -12,7 +12,7 @@ let session = null;
 async function loadModel() {
   if (!session) {
     try {
-      session = await ort.InferenceSession.create('./models/dental_best.onnx');
+      session = await ort.InferenceSession.create('./models/dental_best_single.onnx');
     } catch (e) {
       console.error("ONNX 모델 로드 실패:", e);
     }
