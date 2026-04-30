@@ -34,10 +34,8 @@
         </div>
 
         <div class="toolbar" style="opacity: 0.5; pointer-events: none; flex-wrap: wrap; gap: 15px;" id="mainToolbar">
-          <!-- 검색창 (실시간 연동) -->
           <input type="text" id="searchPatient" class="search-input" placeholder="🔍 환자명 또는 진료번호 검색..." style="width: 300px;">
           
-          <!-- 다중 태그 필터 (드롭다운 대신 칩 형태) -->
           <div class="tag-filter-container" id="tagFilterContainer">
             <!-- JS에서 동적으로 버튼 생성 -->
           </div>
@@ -69,6 +67,15 @@
           </div>
         </div>
 
+        <!-- 💡 환자 전체 특이사항 (Global Memo) -->
+        <div class="global-memo-box">
+          <div class="memo-header-flex">
+            <h4 style="color: var(--btn-green); margin: 0;">📌 환자 전체 특이사항 (Global Memo)</h4>
+            <button id="saveGlobalMemoBtn" class="btn-success" style="padding: 6px 12px; font-size: 12px;">전체 특이사항 저장</button>
+          </div>
+          <textarea id="globalPatientMemo" class="memo-textarea" placeholder="환자의 전신 질환(고혈압, 당뇨 등), 전체적인 치료 계획, 핵심 주의사항 등을 기록하세요..."></textarea>
+        </div>
+
         <h3 style="margin-top: 30px; margin-bottom: 15px; color: var(--btn-navy);">치료 타임라인</h3>
         <div class="timeline-bar" id="timelineBar"></div>
 
@@ -79,13 +86,13 @@
         
         <div id="photoViewerArea" class="image-grid"></div>
 
-        <!-- 메모 기능 활성화 영역 -->
-        <div class="memo-box">
+        <!-- 💡 진료일별 차트 및 메모 (Daily Record Memo) -->
+        <div class="record-memo-box">
           <div class="memo-header-flex">
-            <h4 style="color: var(--btn-navy); margin: 0;">📝 메모</h4>
-            <button id="saveMemoBtn" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">메모 저장</button>
+            <h4 style="color: var(--btn-navy); margin: 0;">📝 <span id="recordMemoTitleDate">진료일</span> 차트 및 처치 내용</h4>
+            <button id="saveRecordMemoBtn" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">해당일 차트 저장</button>
           </div>
-          <textarea id="currentRecordMemo" class="memo-textarea" placeholder="이 증례에 대한 메모를 입력하세요..."></textarea>
+          <textarea id="currentRecordMemo" class="memo-textarea" placeholder="선택한 진료일에 대한 구체적인 처치 내용, 사용 재료, 다음 예약 사항 등을 기록하세요..."></textarea>
         </div>
       </div>
 
@@ -109,7 +116,7 @@
           </div>
         </div>
         <div class="input-group">
-          <label>초진 날짜</label><input type="date" id="initialVisitDate" required>
+          <label>초진 날짜 (타임라인 계산 기준)</label><input type="date" id="initialVisitDate" required>
         </div>
         <div class="input-group">
           <label>태그 (쉼표로 구분하여 무한 생성)</label>
@@ -123,7 +130,7 @@
     </div>
   </div>
 
-  <!-- [모달] 환자 정보 수정 (초진일 변경 가능) -->
+  <!-- [모달] 환자 정보 수정 -->
   <div id="editPatientModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -172,8 +179,8 @@
           <label>진료 날짜</label><input type="date" id="recordDate" required>
         </div>
         <div class="input-group">
-          <label>간단 메모</label>
-          <input type="text" id="recordMemo" placeholder="예: #23 치아 수복">
+          <label>간단 메모 (선택사항)</label>
+          <input type="text" id="recordMemo" placeholder="예: #23 치아 수복 완료">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button>
