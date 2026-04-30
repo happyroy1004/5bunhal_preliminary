@@ -1,157 +1,128 @@
-/* 사진 3과 동일한 테마 컬러 설정 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+/* ==================== 공통 초기화 ==================== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans KR', sans-serif; background-color: #F5F7FA; color: #333; line-height: 1.5; }
+a { text-decoration: none; }
+
+/* ==================== 색상 변수 설정 ==================== */
 :root {
-  --nav-bg: #FFFFFF;
-  --body-bg: #3B5270; /* 배경 남색 */
-  --card-bg: #FFFFFF;
-  --banner-bg: #FEF9C3; /* 부드러운 노란색 */
-  --btn-success: #4A8B5E; /* 초록색 버튼 */
-  --btn-darkblue: #374A6A; /* 짙은 남색 버튼 */
-  --btn-danger: #D9534F; /* 빨간색 로그아웃 */
-  --border-color: #E2E8F0;
-  --text-dark: #1E293B;
-  --text-gray: #64748B;
+  --navy-bg: #3B4B61;       /* 대시보드 배경 남색 */
+  --card-bg: #FFFFFF;       /* 카드 배경 하얀색 */
+  --banner-bg: #FCF8E3;     /* 안내 배너 부드러운 노란색 */
+  --banner-border: #FAEBCC; 
+  --btn-green: #5B8C65;     /* 새 환자 등록 초록색 */
+  --btn-navy: #374A6A;      /* 기본 버튼 짙은 남색 */
+  --btn-red: #D9534F;       /* 로그아웃 빨간색 */
+  --text-dark: #2C3E50;     /* 진한 글씨 */
+  --text-gray: #7F8C8D;     /* 연한 글씨 */
+  --border-light: #E2E8F0;  /* 연한 테두리 */
 }
 
-/* 네비게이션 바 */
+/* ==================== 로그인 & 회원가입 페이지 ==================== */
+.login-page {
+  background-color: var(--navy-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+.login-container { width: 100%; max-width: 420px; padding: 20px; }
+.login-box {
+  background: var(--card-bg);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.login-header h1 { font-size: 24px; color: var(--text-dark); margin-bottom: 5px; text-align: center; }
+.login-header p { text-align: center; color: var(--text-gray); font-size: 14px; margin-bottom: 30px; }
+
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-dark); }
+.input-group input { width: 100%; padding: 12px 14px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 14px; outline: none; transition: 0.2s; }
+.input-group input:focus { border-color: var(--btn-navy); }
+
+.checkbox-group { margin-bottom: 20px; display: flex; align-items: center; font-size: 13px; color: var(--text-gray); }
+.checkbox-group input { margin-right: 8px; }
+
+.btn-primary { width: 100%; padding: 14px; background: var(--btn-navy); color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { background: #2A3952; }
+
+.login-footer { margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-gray); }
+.login-footer a { color: var(--btn-navy); font-weight: 700; margin-left: 5px; }
+
+/* ==================== 대시보드 레이아웃 ==================== */
+.dashboard-body { background: var(--navy-bg); min-height: 100vh; display: flex; flex-direction: column; }
+
 .top-nav {
+  background: white;
+  padding: 16px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--nav-bg);
-  padding: 12px 30px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
-.nav-brand {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-dark);
-}
-.nav-user {
-  font-size: 14px;
-  color: var(--text-gray);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
+.nav-brand { font-size: 20px; font-weight: 700; color: var(--btn-navy); display: flex; align-items: center; gap: 8px; }
+.nav-user { display: flex; align-items: center; gap: 15px; font-size: 14px; color: var(--text-gray); }
+.btn-logout { background: var(--btn-red); color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
 
-/* 대시보드 배경 및 카드 */
-.dashboard-body {
-  background-color: var(--body-bg);
-  min-height: 100vh;
-}
-.dashboard-container {
-  padding: 30px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.dashboard-container { padding: 40px 20px; max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
 .dashboard-card {
   background: var(--card-bg);
   border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   min-height: 600px;
 }
 
-/* 타이틀 및 배너 */
-.greeting-title {
-  color: #E2E8F0;
-  font-size: 24px;
-  font-weight: 300;
-  margin-bottom: 20px;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* 사진처럼 하얀 글씨 효과 */
-}
-/* 사진 속 인사말은 하얀색 계열인데 흰 바탕에 있으므로 연한 회색/음영 처리 */
-.dashboard-card .greeting-title {
-  color: #E2E8F0; 
-}
+/* ==================== 대시보드 내부 요소 ==================== */
+.greeting-title { font-size: 24px; color: var(--text-dark); font-weight: 700; margin-bottom: 25px; }
 
 .info-banner {
+  background: var(--banner-bg);
+  border: 1px solid var(--banner-border);
+  padding: 18px 25px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--banner-bg);
-  border: 1px solid #FDE047;
-  padding: 15px 20px;
-  border-radius: 8px;
   margin-bottom: 30px;
 }
-.banner-text {
-  font-size: 14px;
-  color: #854D0E;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.banner-actions { display: flex; gap: 10px; }
+.banner-text { color: #8A6D3B; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+.banner-actions button { background: var(--btn-navy); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-left: 10px; font-size: 13px; }
 
-/* 툴바 */
-.toolbar {
-  display: flex;
-  justify-content: space-between;
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 50px; }
+.search-input { padding: 10px 15px; border: 1px solid var(--border-light); border-radius: 6px; width: 280px; font-size: 14px; }
+.tag-filter { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-dark); font-weight: 500; }
+.custom-select { padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 14px; outline: none; }
+.btn-success { background: var(--btn-green); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; }
+
+.empty-state { text-align: center; padding: 80px 0; color: var(--text-gray); }
+.clipboard-icon { font-size: 48px; margin-bottom: 15px; }
+.empty-state h3 { font-size: 18px; color: var(--text-dark); margin-bottom: 8px; }
+.empty-state p { font-size: 14px; }
+
+/* ==================== 모달창 (팝업 대체) ==================== */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
   align-items: center;
-  margin-bottom: 40px;
+  justify-content: center;
+  z-index: 1000;
 }
-.search-input {
-  width: 250px;
-  padding: 10px 15px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-}
-.tag-filter {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-.custom-select {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+.modal.show { display: flex; }
+.modal-content {
   background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.2);
 }
-
-/* 새로운 색상 버튼들 */
-.btn-success {
-  background-color: var(--btn-success);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.btn-darkblue {
-  background-color: var(--btn-darkblue);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn-danger {
-  background-color: var(--btn-danger);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.login-btn-color {
-  background-color: var(--btn-darkblue);
-}
-
-/* Empty State (빈 화면 디자인) */
-.empty-state {
-  text-align: center;
-  padding: 60px 0;
-  color: var(--text-gray);
-}
-.clipboard-icon {
-  font-size: 60px;
-  margin-bottom: 15px;
-}
-.empty-state h3 {
-  font-size: 18px;
-  color: var(--text-dark);
-  margin-bottom: 5px;
-}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; }
+.modal-header h3 { font-size: 18px; color: var(--text-dark); }
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-gray); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-light); }
+.btn-secondary { background: white; border: 1px solid var(--border-light); padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
