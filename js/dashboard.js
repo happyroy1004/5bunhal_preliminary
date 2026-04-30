@@ -35,13 +35,13 @@ const customAlertModal = document.getElementById("customAlertModal");
 const alertMessage = document.getElementById("alertMessage");
 const closeAlertBtn = document.getElementById("closeAlertBtn");
 
-// 전역 상태 변수
+// 전역 변수
 let dirHandle = null;     
 let patientsData = [];    
 let activePatient = null; 
-let activeRecord = null; // 메모 저장을 위해 현재 선택된 증례 추적
+let activeRecord = null; 
 let is5SplitMode = false; 
-let selectedTagsFilter = new Set(); // 다중 선택된 태그 목록
+let selectedTagsFilter = new Set(); 
 
 // ====== 1. 인증 및 공통 알림 ======
 onAuthStateChanged(auth, (user) => {
@@ -122,8 +122,7 @@ async function loadPatientsData() {
     const file = await fileHandle.getFile();
     const contents = await file.text();
     patientsData = contents ? JSON.parse(contents) : [];
-    updateTagDropdown(); // 태그 목록 먼저 구성
-    renderPatients();    // 화면 그리기
+    updateTagDropdown(); renderPatients();    
   } catch (error) { console.error(error); }
 }
 
@@ -134,7 +133,7 @@ async function savePatientsData() {
   await writable.close();
 }
 
-// ====== 3. 검색 & 다중 태그 필터 로직 ======
+// ====== 3. 검색 & 교집합(AND) 태그 필터 로직 ======
 searchPatientInput.addEventListener('input', renderPatients);
 
 function updateTagDropdown() {
@@ -146,16 +145,13 @@ function updateTagDropdown() {
     const btn = document.createElement("button");
     btn.className = "filter-chip";
     btn.innerText = `#${tag}`;
-    // 태그 다중 선택 토글 로직
     btn.onclick = () => {
       if(selectedTagsFilter.has(tag)) {
-        selectedTagsFilter.delete(tag);
-        btn.classList.remove("active");
+        selectedTagsFilter.delete(tag); btn.classList.remove("active");
       } else {
-        selectedTagsFilter.add(tag);
-        btn.classList.add("active");
+        selectedTagsFilter.add(tag); btn.classList.add("active");
       }
-      renderPatients(); // 필터 바뀔때마다 즉시 리렌더링
+      renderPatients(); 
     };
     tagFilterContainer.appendChild(btn);
   });
@@ -165,13 +161,12 @@ function renderPatients() {
   const searchTerm = searchPatientInput.value.toLowerCase().trim();
   patientList.innerHTML = "";
   
-  // 환자 필터링 (검색어 AND 선택된 태그)
   const filtered = patientsData.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchTerm) || p.chartNumber.toLowerCase().includes(searchTerm);
-    // 선택된 태그가 있다면, 환자가 그 태그 중 '하나라도' 가지고 있는지(OR 조건) 체크
     let matchTag = true;
     if (selectedTagsFilter.size > 0) {
-      matchTag = p.tags && p.tags.some(t => selectedTagsFilter.has(t));
+      // 💡 [핵심] 교집합(AND) 로직: 선택된 모든 태그가 환자의 태그에 포함되어 있어야 함
+      matchTag = Array.from(selectedTagsFilter).every(t => p.tags && p.tags.includes(t));
     }
     return matchSearch && matchTag;
   });
@@ -183,6 +178,8 @@ function renderPatients() {
 
   filtered.forEach(p => {
     const tagsHtml = (p.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
+    const infoText = [p.gender, p.age ? `${p.age}세` : ''].filter(Boolean).join(' / ');
+    
     const card = document.createElement("div");
     card.className = "patient-card";
     card.innerHTML = `
@@ -198,7 +195,7 @@ function renderPatients() {
   });
 }
 
-// ====== 4. 환자 등록 및 초진일 수정 로직 ======
+// ====== 4. 환자 등록 및 수정 ======
 addPatientBtn.onclick = () => {
   document.getElementById("initialVisitDate").value = new Date().toISOString().split('T')[0];
   patientModal.classList.add("show");
@@ -228,7 +225,6 @@ addPatientForm.onsubmit = async (e) => {
   } catch (error) { showNotification("폴더 생성 에러."); }
 };
 
-// 환자 정보 수정 모달 띄우기
 editPatientBtn.onclick = () => {
   document.getElementById("editPatientName").value = activePatient.name;
   document.getElementById("editChartNumber").value = activePatient.chartNumber;
@@ -247,12 +243,12 @@ editPatientForm.onsubmit = async (e) => {
   
   await savePatientsData();
   editPatientModal.classList.remove("show");
-  updateTagDropdown(); renderPatients(); // 목록 새로고침
-  openPatientDetail(activePatient); // 상세뷰 새로고침
-  showNotification("환자 정보가 성공적으로 수정되었습니다.");
+  updateTagDropdown(); renderPatients(); 
+  openPatientDetail(activePatient); 
+  showNotification("환자 정보가 수정되었습니다.");
 };
 
-// ====== 5. 임상 사진 상세 & 메모 저장 ======
+// ====== 5. 임상 사진 상세 & 타임라인 간격 계산 ======
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none"; sectionList.style.display = "block"; activePatient = null;
 };
@@ -266,6 +262,23 @@ function openPatientDetail(patient) {
   document.getElementById("detailTags").innerHTML = (patient.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
   
   renderTimeline();
+}
+
+// 💡 날짜 간격을 계산하는 디테일한 함수 (1Y, 3M, 2W, 5D 등)
+function getExactInterval(d1Str, d2Str) {
+  const date1 = new Date(d1Str); const date2 = new Date(d2Str);
+  const diffDays = Math.floor((date2 - date1) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 0) return "당일";
+  if (diffDays < 7) return `${diffDays}D`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}W`;
+  
+  let months = (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
+  if (date2.getDate() < date1.getDate()) months--; // 일수 부족 시 한달 빼기
+  if (months === 0) return `${Math.floor(diffDays / 7)}W`;
+  
+  let y = Math.floor(months / 12); let m = months % 12;
+  return (y > 0 ? y + "Y " : "") + (m > 0 ? m + "M" : "");
 }
 
 function renderTimeline() {
@@ -283,15 +296,34 @@ function renderTimeline() {
 
   activePatient.records.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-  activePatient.records.forEach((record) => {
+  // 1. 초진일이 실제 사진(records)보다 먼저일 경우, 스타트 포인트로 강제 렌더링
+  let hasInitNode = false;
+  if (activePatient.initialVisitDate && activePatient.records[0].date > activePatient.initialVisitDate) {
+    const initBox = document.createElement("div");
+    initBox.className = "timeline-item";
+    initBox.style.opacity = "0.7"; initBox.style.cursor = "default";
+    initBox.innerHTML = `<div class="timeline-date">${activePatient.initialVisitDate}</div><div class="timeline-label">초진 (사진없음)</div>`;
+    tBar.appendChild(initBox);
+    hasInitNode = true;
+  }
+
+  // 2. 실제 증례들 렌더링 (사이에 선 연결 포함)
+  activePatient.records.forEach((record, index) => {
+    // 이전 노드가 있다면, 연결선과 사이 간격(Interval) 렌더링
+    if (index > 0 || hasInitNode) {
+      const prevDate = (index === 0) ? activePatient.initialVisitDate : activePatient.records[index - 1].date;
+      const interval = getExactInterval(prevDate, record.date);
+      
+      const connector = document.createElement("div");
+      connector.className = "timeline-connector";
+      connector.innerHTML = `<span class="interval-text">${interval}</span>`;
+      tBar.appendChild(connector);
+    }
+
+    // 현재 기록 노드 렌더링
     const box = document.createElement("div");
     box.className = "timeline-item";
-    
-    let label = "";
-    if (activePatient.initialVisitDate) {
-      if (record.date === activePatient.initialVisitDate) label = "초진";
-      else label = getElapsedTime(activePatient.initialVisitDate, record.date);
-    } else { label = "진료"; }
+    let label = (activePatient.initialVisitDate && record.date === activePatient.initialVisitDate) ? "초진" : "진료";
     
     box.innerHTML = `<div class="timeline-date">${record.date}</div><div class="timeline-label">${label}</div>`;
     box.onclick = () => {
@@ -301,20 +333,14 @@ function renderTimeline() {
     };
     tBar.appendChild(box);
   });
-  tBar.lastChild.click(); 
-}
 
-function getElapsedTime(startStr, currentStr) {
-  const d1 = new Date(startStr); const d2 = new Date(currentStr);
-  let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-  if (months === 0) return "초진 당월";
-  if (months < 0) return "초진 이전";
-  let y = Math.floor(months / 12); let m = months % 12;
-  return (y > 0 ? y + "Y " : "") + (m > 0 ? m + "M" : "");
+  // 클릭 가능한 노드 중 최신 기록 자동 클릭
+  const items = tBar.querySelectorAll(".timeline-item:not([style*='opacity'])");
+  if(items.length > 0) items[items.length - 1].click(); 
 }
 
 async function loadPhotosForRecord(record) {
-  activeRecord = record; // 현재 선택된 증례 기록 보관 (메모 저장용)
+  activeRecord = record; 
   document.getElementById("currentRecordDate").innerText = record.date;
   document.getElementById("currentRecordMemo").value = record.memo || "";
   
@@ -341,13 +367,9 @@ async function loadPhotosForRecord(record) {
   }
 }
 
-// 💡 직접 작성한 메모 저장 로직
 document.getElementById("saveMemoBtn").onclick = async () => {
-  if (!activeRecord) {
-    showNotification("선택된 증례가 없습니다."); return;
-  }
-  const newMemo = document.getElementById("currentRecordMemo").value;
-  activeRecord.memo = newMemo;
+  if (!activeRecord) { showNotification("선택된 증례가 없습니다."); return; }
+  activeRecord.memo = document.getElementById("currentRecordMemo").value;
   await savePatientsData();
   showNotification("메모가 안전하게 저장되었습니다.");
 };
