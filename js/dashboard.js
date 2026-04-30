@@ -137,77 +137,35 @@ function updateTimelineUI() {
 }
 
 async function loadPhotosToPanel(record, panelPrefix) {
-  // 💡 진료 기록 전체 삭제 버튼 렌더링
-  document.getElementById(`recordDate${panelPrefix}`).innerHTML = `
-    ${record.date} 
-    <button id="deleteRecordBtn${panelPrefix}" style="font-size:12px; margin-left:15px; padding:4px 8px; border-radius:4px; border:1px solid var(--btn-red); background:white; color:var(--btn-red); cursor:pointer;">🗑️ 이 기록 삭제</button>
-  `;
+  document.getElementById(`recordDate${panelPrefix}`).innerHTML = `${record.date} <button id="deleteRecordBtn${panelPrefix}" style="font-size:12px; margin-left:15px; padding:4px 8px; border-radius:4px; border:1px solid var(--btn-red); background:white; color:var(--btn-red); cursor:pointer;">🗑️ 이 기록 삭제</button>`;
   document.getElementById(`deleteRecordBtn${panelPrefix}`).onclick = () => deleteWholeRecord(record);
-
-  document.getElementById(`recordMemoTitle${panelPrefix}`).innerText = record.date;
-  document.getElementById(`recordMemo${panelPrefix}`).value = record.memo || "";
+  document.getElementById(`recordMemoTitle${panelPrefix}`).innerText = record.date; document.getElementById(`recordMemo${panelPrefix}`).value = record.memo || "";
   
   const viewer = document.getElementById(`photoViewer${panelPrefix}`);
-  
-  // 💡 사진이 아예 없는 기록일 경우 처리
-  if (!record.images || record.images.length === 0) {
-    viewer.className = "image-grid"; 
-    viewer.innerHTML = "<div style='color:#64748B; text-align:center; padding:30px; grid-column:1/-1; background:#F8FAFC; border-radius:8px;'>첨부된 사진이 없습니다. 차트 내용만 존재합니다.</div>";
-    return;
-  }
+  if (!record.images || record.images.length === 0) { viewer.className = "image-grid"; viewer.innerHTML = "<div style='color:#64748B; text-align:center; padding:30px; grid-column:1/-1; background:#F8FAFC; border-radius:8px;'>첨부된 사진이 없습니다. 차트 내용만 존재합니다.</div>"; return; }
 
   try {
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
-    const dFolder = await pFolder.getDirectoryHandle(record.date);
-    
+    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`); const dFolder = await pFolder.getDirectoryHandle(record.date);
     let html = ""; const classes = ["pos-upper", "pos-right", "pos-front", "pos-left", "pos-lower"];
     for (let i = 0; i < record.images.length; i++) {
-      let imgData = record.images[i];
-      let originalName = typeof imgData === 'string' ? imgData : imgData.original;
-      let editedName = typeof imgData === 'string' ? null : imgData.edited;
-      let displayFileName = editedName || originalName;
-
-      const fileHandle = await dFolder.getFileHandle(displayFileName);
-      const file = await fileHandle.getFile();
-      const objUrl = URL.createObjectURL(file); 
-      const posClass = is5SplitMode ? (i < 5 ? classes[i] : "") : "";
-      
-      html += `
-        <div class="image-wrapper ${posClass}" data-index="${i}">
-          <div class="image-overlay">
-            <button class="btn-icon edit">✂️ 편집</button>
-            <button class="btn-icon delete">🗑️ 삭제</button>
-          </div>
-          <img src="${objUrl}" data-url="${objUrl}" alt="임상사진">
-        </div>
-      `;
+      let imgData = record.images[i]; let originalName = typeof imgData === 'string' ? imgData : imgData.original; let editedName = typeof imgData === 'string' ? null : imgData.edited; let displayFileName = editedName || originalName;
+      const fileHandle = await dFolder.getFileHandle(displayFileName); const file = await fileHandle.getFile(); const objUrl = URL.createObjectURL(file); const posClass = is5SplitMode ? (i < 5 ? classes[i] : "") : "";
+      html += `<div class="image-wrapper ${posClass}" data-index="${i}"><div class="image-overlay"><button class="btn-icon edit">✂️ 편집</button><button class="btn-icon delete">🗑️ 삭제</button></div><img src="${objUrl}" data-url="${objUrl}" alt="임상사진"></div>`;
     }
-    viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; 
-    viewer.innerHTML = html;
-
+    viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; viewer.innerHTML = html;
     viewer.querySelectorAll('img').forEach(img => { img.ondblclick = () => { fullscreenImage.src = img.getAttribute('data-url'); fullscreenViewer.classList.add('show'); }; });
     viewer.querySelectorAll('.btn-icon.edit').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); openImageEditModal(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); } });
     viewer.querySelectorAll('.btn-icon.delete').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); deleteImage(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); } });
-
   } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진 파일이 손상되었거나 폴더가 이동되었습니다.</div>"; }
 }
 
-// 💡 타임라인 기록 전체 삭제 로직
 async function deleteWholeRecord(recordToDelete) {
   if(!confirm(`${recordToDelete.date} 진료 기록을 완전히 삭제하시겠습니까?\n(로컬 폴더의 실제 사진 파일은 보존되며, 시스템 목록에서만 지워집니다.)`)) return;
-  
-  activePatient.records = activePatient.records.filter(r => r.id !== recordToDelete.id);
-  await savePatientsData();
-  
+  activePatient.records = activePatient.records.filter(r => r.id !== recordToDelete.id); await savePatientsData();
   selectedRecords = selectedRecords.filter(r => r.id !== recordToDelete.id);
-  if (selectedRecords.length === 0 && activePatient.records.length > 0) {
-     selectedRecords = [activePatient.records[activePatient.records.length - 1]];
-  }
-  
-  renderTimeline();
-  showNotification("진료 기록이 성공적으로 삭제되었습니다.");
+  if (selectedRecords.length === 0 && activePatient.records.length > 0) selectedRecords = [activePatient.records[activePatient.records.length - 1]];
+  renderTimeline(); showNotification("진료 기록이 성공적으로 삭제되었습니다.");
 }
-
 
 closeViewerBtn.onclick = () => fullscreenViewer.classList.remove('show');
 fullscreenViewer.onclick = (e) => { if(e.target===fullscreenViewer) fullscreenViewer.classList.remove('show'); };
@@ -225,7 +183,6 @@ compareModeBtn.onclick = () => {
 };
 
 document.getElementById("toggle5SplitBtn").onclick = (e) => { is5SplitMode=!is5SplitMode; e.target.innerText=`5분할 모드 ${is5SplitMode?'ON':'OFF'}`; e.target.style.background=is5SplitMode?"var(--btn-green)":"var(--btn-navy)"; renderViewPanels(); };
-
 document.getElementById("saveMemoBtnPrimary").onclick = async () => { if(!selectedRecords[0])return; selectedRecords[0].memo=document.getElementById("recordMemoPrimary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 document.getElementById("saveMemoBtnSecondary").onclick = async () => { if(!selectedRecords[1])return; selectedRecords[1].memo=document.getElementById("recordMemoSecondary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 
@@ -234,65 +191,46 @@ document.getElementById("closeRecordModalBtn").onclick = () => recordModal.class
 document.getElementById("recordPhotos").addEventListener("change", (e) => { const f=e.target.files; if(f.length>0){ let o=f[0].lastModified; for(let i=1;i<f.length;i++){if(f[i].lastModified<o) o=f[i].lastModified;} const d=new Date(o); document.getElementById("recordDate").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; } });
 
 addRecordForm.onsubmit = async (e) => {
-  e.preventDefault(); 
-  const dateStr = document.getElementById("recordDate").value; 
-  const memoStr = document.getElementById("recordMemo").value; 
-  const files = document.getElementById("recordPhotos").files;
-
-  const sb = document.querySelector("#addRecordForm .btn-success"); 
-  sb.innerText = "저장 중..."; sb.disabled = true;
-
+  e.preventDefault(); const dateStr = document.getElementById("recordDate").value; const memoStr = document.getElementById("recordMemo").value; const files = document.getElementById("recordPhotos").files;
+  const sb = document.querySelector("#addRecordForm .btn-success"); sb.innerText = "저장 중..."; sb.disabled = true;
   try {
     let savedFileNames = [];
-    
-    // 💡 사진이 첨부되었을 때만 폴더를 만들고 파일을 저장함
     if (files.length > 0) {
-      const pf = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`, {create:true}); 
-      const df = await pf.getDirectoryHandle(dateStr, {create:true});
+      const pf = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`, {create:true}); const df = await pf.getDirectoryHandle(dateStr, {create:true});
       for(let i=0; i<files.length; i++) {
         const nf = await df.getFileHandle(files[i].name, {create:true}); const w = await nf.createWritable(); await w.write(files[i]); await w.close();
         savedFileNames.push({ original: files[i].name, edited: null });
       }
     }
-    
-    if(!activePatient.records) activePatient.records=[]; 
-    activePatient.records.push({id:Date.now(), date:dateStr, memo:memoStr, images:savedFileNames}); 
-    
-    await savePatientsData();
-    recordModal.classList.remove("show"); addRecordForm.reset(); renderTimeline(); 
-    showNotification("진료 기록이 추가되었습니다.");
+    if(!activePatient.records) activePatient.records=[]; activePatient.records.push({id:Date.now(), date:dateStr, memo:memoStr, images:savedFileNames}); 
+    await savePatientsData(); recordModal.classList.remove("show"); addRecordForm.reset(); renderTimeline(); showNotification("진료 기록이 추가되었습니다.");
   } catch(err){ showNotification("오류: "+err.message); } finally { sb.innerText="기록 저장"; sb.disabled=false; }
 };
 
 async function deleteImage(record, index, panelPrefix) {
   if(!confirm("이 사진을 삭제하시겠습니까?\n(로컬 폴더의 실제 파일은 보존되며, 목록에서만 지워집니다.)")) return;
-  record.images.splice(index, 1);
-  await savePatientsData();
-  loadPhotosToPanel(record, panelPrefix);
-  showNotification("사진이 삭제되었습니다.");
+  record.images.splice(index, 1); await savePatientsData(); loadPhotosToPanel(record, panelPrefix); showNotification("사진이 삭제되었습니다.");
 }
 
 document.getElementById("closeEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 document.getElementById("cancelEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 
 async function openImageEditModal(record, index, panelPrefix) {
-  editTarget.record = record; editTarget.index = index;
-  let imgData = record.images[index];
-  editTarget.originalName = typeof imgData === 'string' ? imgData : imgData.original;
-
+  editTarget.record = record; editTarget.index = index; let imgData = record.images[index]; editTarget.originalName = typeof imgData === 'string' ? imgData : imgData.original;
   try {
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
-    const dFolder = await pFolder.getDirectoryHandle(record.date);
-    const fileHandle = await dFolder.getFileHandle(editTarget.originalName);
-    const file = await fileHandle.getFile();
-    
-    editImagePreview.src = URL.createObjectURL(file);
-    imageEditModal.classList.add("show");
-
+    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`); const dFolder = await pFolder.getDirectoryHandle(record.date);
+    const fileHandle = await dFolder.getFileHandle(editTarget.originalName); const file = await fileHandle.getFile();
+    editImagePreview.src = URL.createObjectURL(file); imageEditModal.classList.add("show");
     baseRotation = 0; flipY = 1; document.getElementById("fineRotateSlider").value = 0; document.getElementById("fineRotateValue").innerText = "0°";
-
     if (currentCropper) currentCropper.destroy();
-    currentCropper = new Cropper(editImagePreview, { aspectRatio: 4 / 3, viewMode: 1, dragMode: 'move', background: false });
+    
+    // 💡 해결된 부분: aspectRatio를 initialAspectRatio로 변경하여 자유롭게 조절 가능하도록 함
+    currentCropper = new Cropper(editImagePreview, { 
+      initialAspectRatio: 4 / 3, // 처음에만 4:3 박스로 렌더링되고 이후부터 프리사이즈
+      viewMode: 1, 
+      dragMode: 'move', 
+      background: false 
+    });
   } catch(e) { showNotification("원본 파일을 찾을 수 없어 편집할 수 없습니다."); }
 }
 
@@ -304,20 +242,14 @@ document.getElementById("fineRotateSlider").addEventListener("input", (e) => { i
 document.getElementById("saveEditImageBtn").onclick = async () => {
   if (!currentCropper) return;
   const btn = document.getElementById("saveEditImageBtn"); btn.innerText = "저장 중..."; btn.disabled = true;
-
   try {
     const canvas = currentCropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
     canvas.toBlob(async (blob) => {
-      const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
-      const dFolder = await pFolder.getDirectoryHandle(editTarget.record.date);
+      const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`); const dFolder = await pFolder.getDirectoryHandle(editTarget.record.date);
       const editedName = "edited_" + Date.now() + "_" + editTarget.originalName;
-      const newFileHandle = await dFolder.getFileHandle(editedName, { create: true });
-      const writable = await newFileHandle.createWritable(); await writable.write(blob); await writable.close();
-
+      const newFileHandle = await dFolder.getFileHandle(editedName, { create: true }); const writable = await newFileHandle.createWritable(); await writable.write(blob); await writable.close();
       let imgData = editTarget.record.images[editTarget.index];
-      if (typeof imgData === 'string') editTarget.record.images[editTarget.index] = { original: imgData, edited: editedName };
-      else imgData.edited = editedName;
-      
+      if (typeof imgData === 'string') editTarget.record.images[editTarget.index] = { original: imgData, edited: editedName }; else imgData.edited = editedName;
       await savePatientsData(); imageEditModal.classList.remove("show"); renderViewPanels(); 
       showNotification("크롭/편집본이 고화질로 저장되었습니다."); btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
     }, 'image/jpeg', 1.0);
