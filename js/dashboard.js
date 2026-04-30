@@ -18,7 +18,6 @@ const sectionList = document.getElementById("patientListSection");
 const sectionDetail = document.getElementById("patientDetailSection");
 const backToListBtn = document.getElementById("backToListBtn");
 
-// 모달들
 const patientModal = document.getElementById("addPatientModal");
 const addPatientBtn = document.getElementById("addPatientBtn");
 const addPatientForm = document.getElementById("addPatientForm");
@@ -35,19 +34,22 @@ const customAlertModal = document.getElementById("customAlertModal");
 const alertMessage = document.getElementById("alertMessage");
 const closeAlertBtn = document.getElementById("closeAlertBtn");
 
-// 비교 모드 관련 DOM
 const compareModeBtn = document.getElementById("compareModeBtn");
 const viewsContainer = document.getElementById("viewsContainer");
 const secondaryViewPanel = document.getElementById("secondaryViewPanel");
 
-// 전역 변수
+// 💡 확대 뷰어 DOM
+const fullscreenViewer = document.getElementById("fullscreenViewer");
+const fullscreenImage = document.getElementById("fullscreenImage");
+const closeViewerBtn = document.getElementById("closeViewerBtn");
+
 let dirHandle = null;     
 let patientsData = [];    
 let activePatient = null; 
 let is5SplitMode = false; 
 let isCompareMode = false;
 let selectedTagsFilter = new Set(); 
-let selectedRecords = []; // 단일 모드일 땐 1개, 비교 모드일 땐 2개까지 저장
+let selectedRecords = []; 
 
 // ====== 1. 인증 및 공통 알림 ======
 onAuthStateChanged(auth, (user) => {
@@ -227,7 +229,7 @@ editPatientForm.onsubmit = async (e) => {
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none"; sectionList.style.display = "block"; activePatient = null;
   selectedRecords = []; isCompareMode = false;
-  compareModeBtn.innerText = "비교 모드 (Before/After) OFF"; compareModeBtn.classList.replace("btn-primary", "btn-secondary");
+  compareModeBtn.innerText = "비교 모드 (Before/After) OFF"; compareModeBtn.classList.replace("btn-primary", "btn-secondary"); compareModeBtn.style.color = "var(--btn-navy)";
   viewsContainer.className = "single-layout"; secondaryViewPanel.style.display = "none";
 };
 
@@ -247,7 +249,7 @@ document.getElementById("saveGlobalMemoBtn").onclick = async () => {
   if (!activePatient) return;
   activePatient.notes = document.getElementById("globalPatientMemo").value;
   await savePatientsData();
-  showNotification("환자의 특이사항이 안전하게 저장되었습니다.");
+  showNotification("환자의 전체 특이사항이 안전하게 저장되었습니다.");
 };
 
 function getExactInterval(d1Str, d2Str) {
@@ -291,19 +293,18 @@ function renderTimeline() {
     let label = (activePatient.initialVisitDate && record.date === activePatient.initialVisitDate) ? "초진" : "진료";
     box.innerHTML = `<div class="timeline-date">${record.date}</div><div class="timeline-label">${label}</div>`;
     
-    // 💡 타임라인 클릭 시 단일/다중 선택 로직
     box.onclick = () => {
       if (!isCompareMode) {
         selectedRecords = [record];
       } else {
         const idx = selectedRecords.findIndex(r => r.id === record.id);
         if (idx > -1) {
-          if (selectedRecords.length > 1) selectedRecords.splice(idx, 1); // 2개일 때만 해제 허용
+          if (selectedRecords.length > 1) selectedRecords.splice(idx, 1); 
         } else {
-          if (selectedRecords.length >= 2) selectedRecords.shift(); // 2개 넘으면 오래된 것 밀어내기 (FIFO)
+          if (selectedRecords.length >= 2) selectedRecords.shift(); 
           selectedRecords.push(record);
         }
-        selectedRecords.sort((a,b) => new Date(a.date) - new Date(b.date)); // 항상 과거가 왼쪽으로
+        selectedRecords.sort((a,b) => new Date(a.date) - new Date(b.date)); 
       }
       updateTimelineUI(); renderViewPanels();
     };
@@ -347,18 +348,36 @@ async function loadPhotosToPanel(record, panelPrefix) {
       const file = await fileHandle.getFile();
       const objUrl = URL.createObjectURL(file); 
       const posClass = is5SplitMode ? (i < 5 ? classes[i] : "") : "";
-      html += `<img src="${objUrl}" class="${posClass}" alt="임상사진">`;
+      
+      // 💡 더블클릭 확대 이벤트를 위한 data-url 삽입
+      html += `<img src="${objUrl}" data-url="${objUrl}" class="${posClass}" alt="임상사진">`;
     }
-    viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; viewer.innerHTML = html;
+    viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; 
+    viewer.innerHTML = html;
+
+    // 💡 방금 생성된 모든 사진에 더블클릭(ondblclick) 이벤트 부착
+    viewer.querySelectorAll('img').forEach(img => {
+      img.ondblclick = () => {
+        fullscreenImage.src = img.getAttribute('data-url');
+        fullscreenViewer.classList.add('show');
+      };
+    });
+
   } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진을 불러올 수 없습니다.</div>"; }
 }
+
+// 💡 확대 뷰어 닫기 이벤트
+closeViewerBtn.onclick = () => fullscreenViewer.classList.remove('show');
+fullscreenViewer.onclick = (e) => {
+  if (e.target === fullscreenViewer) fullscreenViewer.classList.remove('show'); // 배경 클릭 시 닫기
+};
 
 function renderViewPanels() {
   if (selectedRecords.length > 0) loadPhotosToPanel(selectedRecords[0], 'Primary');
   
   if (isCompareMode) {
     if (selectedRecords.length > 1) {
-      document.getElementById("photoViewerSecondary").innerHTML = ""; // 초기화
+      document.getElementById("photoViewerSecondary").innerHTML = ""; 
       loadPhotosToPanel(selectedRecords[1], 'Secondary');
     } else {
       document.getElementById("recordDateSecondary").innerText = "비교할 두 번째 날짜를 선택하세요";
@@ -368,24 +387,19 @@ function renderViewPanels() {
   }
 }
 
-// 💡 비교 모드 토글
 compareModeBtn.onclick = () => {
   isCompareMode = !isCompareMode;
   if (isCompareMode) {
-    compareModeBtn.innerText = "비교 모드 (Before/After) ON"; compareModeBtn.classList.replace("btn-secondary", "btn-primary");
-    compareModeBtn.style.color = "white";
+    compareModeBtn.innerText = "비교 모드 (Before/After) ON"; compareModeBtn.classList.replace("btn-secondary", "btn-primary"); compareModeBtn.style.color = "white";
     viewsContainer.className = "compare-layout"; secondaryViewPanel.style.display = "block";
-    
-    // 자동 두 번째 항목 선택 보조
     if (selectedRecords.length === 1 && activePatient.records.length > 1) {
       const other = activePatient.records.find(r => r.id !== selectedRecords[0].id);
       if (other) { selectedRecords.push(other); selectedRecords.sort((a,b) => new Date(a.date) - new Date(b.date)); }
     }
   } else {
-    compareModeBtn.innerText = "비교 모드 (Before/After) OFF"; compareModeBtn.classList.replace("btn-primary", "btn-secondary");
-    compareModeBtn.style.color = "var(--btn-navy)";
+    compareModeBtn.innerText = "비교 모드 (Before/After) OFF"; compareModeBtn.classList.replace("btn-primary", "btn-secondary"); compareModeBtn.style.color = "var(--btn-navy)";
     viewsContainer.className = "single-layout"; secondaryViewPanel.style.display = "none";
-    if (selectedRecords.length > 1) selectedRecords = [selectedRecords[1]]; // 비교모드 끄면 최신날짜 1개만 유지
+    if (selectedRecords.length > 1) selectedRecords = [selectedRecords[1]]; 
   }
   updateTimelineUI(); renderViewPanels();
 };
@@ -394,10 +408,9 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => {
   is5SplitMode = !is5SplitMode;
   e.target.innerText = `5분할 모드 ${is5SplitMode ? 'ON' : 'OFF'}`;
   e.target.style.background = is5SplitMode ? "var(--btn-green)" : "var(--btn-navy)";
-  renderViewPanels(); // 양쪽 패널 동시 갱신
+  renderViewPanels(); 
 };
 
-// 💡 각각의 차트(메모) 저장 버튼
 document.getElementById("saveMemoBtnPrimary").onclick = async () => {
   if (!selectedRecords[0]) return;
   selectedRecords[0].memo = document.getElementById("recordMemoPrimary").value;
