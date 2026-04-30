@@ -247,7 +247,7 @@ document.getElementById("saveGlobalMemoBtn").onclick = async () => {
   if (!activePatient) return;
   activePatient.notes = document.getElementById("globalPatientMemo").value;
   await savePatientsData();
-  showNotification("환자의 전체 특이사항이 안전하게 저장되었습니다.");
+  showNotification("환자의 특이사항이 안전하게 저장되었습니다.");
 };
 
 function getExactInterval(d1Str, d2Str) {
