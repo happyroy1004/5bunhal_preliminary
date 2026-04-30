@@ -324,6 +324,7 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => {
   }
 };
 
+
 // ====== 6. 새 증례(사진) 기록 및 에러 방지 저장 로직 ======
 addRecordBtn.onclick = () => {
   document.getElementById("recordDate").value = new Date().toISOString().split('T')[0];
@@ -344,7 +345,6 @@ addRecordForm.onsubmit = async (e) => {
   submitBtn.innerText = "로컬 폴더에 저장 중..."; submitBtn.disabled = true;
 
   try {
-    // 생성 시점의 폴더명 규칙과 완벽히 일치시키기
     const folderName = `[${activePatient.chartNumber}]_${activePatient.name}_임상사진`;
     const pFolder = await dirHandle.getDirectoryHandle(folderName, { create: true });
     const dFolder = await pFolder.getDirectoryHandle(dateStr, { create: true });
@@ -357,6 +357,11 @@ addRecordForm.onsubmit = async (e) => {
       await writable.write(file);
       await writable.close();
       savedFileNames.push(file.name);
+    }
+
+    // 💡 [핵심 해결 부분] 과거 데이터에 바구니가 없을 경우를 대비한 안전장치
+    if (!activePatient.records) {
+      activePatient.records = [];
     }
 
     activePatient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedFileNames });
@@ -374,3 +379,6 @@ addRecordForm.onsubmit = async (e) => {
     submitBtn.innerText = "로컬 폴더에 사진 저장"; submitBtn.disabled = false;
   }
 };
+
+
+
