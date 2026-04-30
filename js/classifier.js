@@ -16,7 +16,7 @@ async function loadModel() {
   if (!session) {
     try {
       // 💡 다운받은 진짜 모델 파일 이름!
-      session = await ort.InferenceSession.create('./models/dental_best.onnx');
+      session = await ort.InferenceSession.create('./models/dental_best_single.onnx');
       console.log("✅ ONNX 진짜 모델 로드 완료!");
     } catch (e) {
       console.error("❌ ONNX 모델 로드 실패:", e);
