@@ -23,30 +23,21 @@
   </header>
 
   <main class="patient-container">
-    <!-- 특이사항 -->
     <section class="special-notes">
       <h3>특이 사항</h3>
-      <textarea 
-        id="specialNotes" 
-        placeholder="특이사항 기록 가능함"
-        rows="3"
-      ></textarea>
+      <textarea id="specialNotes" placeholder="특이사항 기록 가능함" rows="3"></textarea>
       <button id="saveNotesBtn" class="btn-primary btn-sm">저장</button>
     </section>
 
-    <!-- 타임라인 헤더 -->
     <div class="timeline-header">
       <h3>치료 타임라인</h3>
       <button id="addRecordBtn" class="btn-primary">+ 새 증례 기록</button>
     </div>
 
-    <!-- 타임라인 -->
     <div id="recordTimeline" class="timeline">
-      <!-- 타임라인 아이템이 동적으로 추가됨 -->
       <div class="loading">증례 기록을 불러오는 중...</div>
     </div>
 
-    <!-- 증례 상세 뷰 -->
     <div id="recordView" class="record-view">
       <div class="empty-state">
         <p>증례를 선택하면 상세 내용이 표시됩니다</p>
@@ -82,7 +73,7 @@
     </div>
   </div>
 
+  <!-- firebase-config만 유지 (patient.js 삭제됨) -->
   <script type="module" src="js/firebase-config.js"></script>
-  <script type="module" src="js/patient.js"></script>
 </body>
 </html>
