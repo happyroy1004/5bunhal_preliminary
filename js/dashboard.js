@@ -140,6 +140,7 @@ function _initModules() {
   initEditor({
     getDirHandle,
     getPatient,
+    getPatients,
     onSaved: () => _renderViewPanels(),
     showAlert,
   });
@@ -241,7 +242,7 @@ document.getElementById("saveGlobalMemoBtn").onclick = async () => {
 document.getElementById("toggle5SplitBtn").onclick = () => {
   is5SplitMode = !is5SplitMode;
   const btn = document.getElementById("toggle5SplitBtn");
-  btn.innerText        = `5분할 모드 ${is5SplitMode ? "ON" : "OFF"}`;
+  btn.innerText        = `5분할 모드 ${is5SplitMode ? "O  N" : "OFF"}`;
   btn.style.background = is5SplitMode ? "var(--btn-green)" : "var(--btn-navy)";
   _renderViewPanels();
 };

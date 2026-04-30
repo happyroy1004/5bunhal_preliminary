@@ -1,4 +1,4 @@
-import { saveEditedImage } from "./storage.js";
+import { saveEditedImage, savePatients } from "./storage.js";
 
 // ──────────────────────────────────────────
 // 편집 상태
@@ -18,8 +18,9 @@ let _target       = { record: null, index: -1, originalName: "" };
  * @param {Function} opts.getPatient   - () => activePatient
  * @param {Function} opts.onSaved      - 저장 완료 후 콜백 ()=>void
  * @param {Function} opts.showAlert    - (msg) => void
+ * @param {Function} opts.getPatients  - (추가됨) 전체 환자 데이터를 불러옴
  */
-export function initEditor({ getDirHandle, getPatient, onSaved, showAlert }) {
+export function initEditor({ getDirHandle, getPatient, onSaved, showAlert, getPatients }) {
   const modal        = document.getElementById("imageEditModal");
   const preview      = document.getElementById("editImagePreview");
   const slider       = document.getElementById("fineRotateSlider");
@@ -60,22 +61,33 @@ export function initEditor({ getDirHandle, getPatient, onSaved, showAlert }) {
       });
       canvas.toBlob(async blob => {
         try {
+          const dirHandle = getDirHandle();
+          
+          // 1. 로컬 폴더에 편집된 새 이미지 파일 저장
           const editedName = await saveEditedImage(
-            getDirHandle(), getPatient(),
+            dirHandle, getPatient(),
             _target.record.date, _target.originalName, blob
           );
+          
+          // 2. 현재 메모리에 있는 환자 데이터 업데이트 (original / edited 매핑 갱신)
           _target.record.images[_target.index].edited = editedName;
+          
+          // 💡 3. 가장 중요한 부분!! 변경된 메모리 데이터를 patients_db.json 파일로 덮어쓰기 저장!
+          if (getPatients) {
+            await savePatients(dirHandle, getPatients());
+          }
+          
           _close();
-          onSaved();
+          onSaved(); // 화면 리렌더링 (renderer.js가 이제 새 edited 파일을 읽어옵니다)
           showAlert("크롭/편집본이 고화질로 저장되었습니다.");
-        } catch {
-          showAlert("저장 중 에러가 발생했습니다.");
+        } catch (error) {
+          showAlert("저장 중 에러가 발생했습니다: " + error.message);
         } finally {
           saveBtn.innerText = "크롭/편집본 저장"; saveBtn.disabled = false;
         }
       }, "image/jpeg", 1.0);
     } catch {
-      showAlert("저장 중 에러가 발생했습니다.");
+      showAlert("저장 전 캔버스 생성 중 에러가 발생했습니다.");
       saveBtn.innerText = "크롭/편집본 저장"; saveBtn.disabled = false;
     }
   };
@@ -85,14 +97,6 @@ export function initEditor({ getDirHandle, getPatient, onSaved, showAlert }) {
 // 편집 모달 열기
 // ──────────────────────────────────────────
 
-/**
- * @param {object} opts
- * @param {object}  opts.record
- * @param {number}  opts.index
- * @param {FileSystemDirectoryHandle} opts.dirHandle
- * @param {object}  opts.patient
- * @param {Function} opts.showAlert
- */
 export async function openEditor({ record, index, dirHandle, patient, showAlert }) {
   const imgData = record.images[index];
   _target = { record, index, originalName: imgData.original };
@@ -102,6 +106,8 @@ export async function openEditor({ record, index, dirHandle, patient, showAlert 
       `[${patient.chartNumber}]_${patient.name}_임상사진`
     );
     const dFolder = await pFolder.getDirectoryHandle(record.date);
+    
+    // 💡 편집을 위해 띄우는 원본은 무조건 .original 파일을 가져와야 합니다.
     const fh      = await dFolder.getFileHandle(_target.originalName);
     const file    = await fh.getFile();
 
