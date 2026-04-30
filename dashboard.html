@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>치과 증례 기록 대시보드</title>
   <link rel="stylesheet" href="css/style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="dashboard-body">
   
@@ -13,22 +12,23 @@
     <div class="nav-brand">🦷 치과 증례 기록</div>
     <div class="nav-user">
       <span id="navUserName">로딩중...</span> 님
-      <button id="logoutBtn" class="btn-danger btn-sm">로그아웃</button>
+      <button id="logoutBtn" class="btn-logout">로그아웃</button>
     </div>
   </header>
 
   <main class="dashboard-container">
     <div class="dashboard-card">
+      
       <h2 class="greeting-title"><span id="greetingName">로딩중</span> 님의 증례 목록입니다.</h2>
       
       <div class="info-banner">
         <div class="banner-text">
-          <span class="folder-icon">📁</span>
+          <span>📁</span>
           데이터는 브라우저 로컬 저장소에 저장됩니다. 백업을 위해 내보내기 기능을 사용하세요.
         </div>
         <div class="banner-actions">
-          <button class="btn-darkblue">데이터 내보내기</button>
-          <button class="btn-darkblue">데이터 가져오기</button>
+          <button>데이터 내보내기</button>
+          <button>데이터 가져오기</button>
         </div>
       </div>
 
@@ -47,13 +47,14 @@
         <button id="addPatientBtn" class="btn-success">+ 새 환자 등록</button>
       </div>
 
-      <section id="patientList" class="patient-grid">
+      <section id="patientList">
         <div class="empty-state">
           <div class="clipboard-icon">📋</div>
           <h3>등록된 환자가 없습니다</h3>
           <p>새 환자를 등록해주세요.</p>
         </div>
       </section>
+      
     </div>
   </main>
 
