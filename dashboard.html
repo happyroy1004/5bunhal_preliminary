@@ -2,22 +2,72 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>환자 목록 - 치과 증례 기록</title>
   <link rel="stylesheet" href="css/style.css">
-  <script type="module" src="js/dashboard.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <header class="main-header">
-    <h2 id="userTitle"> 사용자의 증례 목록 </h2>
-    <button id="logoutBtn">로그아웃</button>
+    <div class="header-content">
+      <h2 id="userTitle">사용자의 증례 목록</h2>
+      <button id="logoutBtn" class="btn-secondary">로그아웃</button>
+    </div>
   </header>
 
   <main class="container">
     <div class="toolbar">
-      <input type="text" id="searchPatient" placeholder="환자명 / 진료번호 검색">
-      <button id="addPatientBtn">+ 새 환자 등록</button>
+      <div class="search-bar">
+        <input 
+          type="text" 
+          id="searchPatient" 
+          placeholder="🔍 환자명 / 진료번호 검색"
+        >
+      </div>
+      
+      <div class="filter-tags" id="tagFilter">
+        <button class="tag-btn active" data-tag="all">전체</button>
+        <!-- 동적으로 태그 추가됨 -->
+      </div>
+      
+      <button id="addPatientBtn" class="btn-primary">+ 새 환자 등록</button>
     </div>
 
-    <section id="patientList" class="patient-grid"></section>
+    <section id="patientList" class="patient-grid">
+      <!-- 환자 카드가 여기에 동적으로 추가됩니다 -->
+      <div class="loading">환자 목록을 불러오는 중...</div>
+    </section>
   </main>
+
+  <!-- 새 환자 등록 모달 -->
+  <div id="addPatientModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>새 환자 등록</h3>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="addPatientForm">
+        <div class="input-group">
+          <label for="patientName">환자명 *</label>
+          <input type="text" id="patientName" required placeholder="환자A">
+        </div>
+        <div class="input-group">
+          <label for="chartNumber">진료번호</label>
+          <input type="text" id="chartNumber" placeholder="2025-001">
+        </div>
+        <div class="input-group">
+          <label for="patientTags">태그 (쉼표로 구분)</label>
+          <input type="text" id="patientTags" placeholder="고혈압, 당뇨">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="cancelBtn">취소</button>
+          <button type="submit" class="btn-primary">등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>
