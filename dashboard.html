@@ -93,7 +93,8 @@
 
   <div id="addRecordModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>새 임상 사진 기록</h3><button class="close-btn" id="closeRecordModalBtn">&times;</button></div><form id="addRecordForm"><div class="input-group"><label>사진 첨부</label><input type="file" id="recordPhotos" accept="image/*" multiple required><p style="font-size: 11px; color: var(--text-gray); margin-top: 4px;">가장 오래된 원본 생성일이 진료 날짜로 자동 설정됩니다.</p></div><div class="input-group"><label>진료 날짜</label><input type="date" id="recordDate" required></div><div class="input-group"><label>간단 메모 (선택사항)</label><input type="text" id="recordMemo"></div><div class="modal-footer"><button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button><button type="submit" class="btn-success">로컬 폴더에 저장</button></div></form></div></div>
 
-  <!-- 💡 [추가됨] 사진 편집 (회전 및 크롭) 모달 -->
+
+  <!-- 💡 [수정됨] 사진 편집 (회전/반전/크롭) 모달 -->
   <div id="imageEditModal" class="modal">
     <div class="modal-content" style="max-width: 800px; width: 90%;">
       <div class="modal-header">
@@ -103,19 +104,26 @@
       <div class="cropper-container-box">
         <img id="editImagePreview" src="" style="max-width: 100%; max-height: 100%;">
       </div>
+      
+      <!-- 💡 미세 회전 슬라이더 -->
+      <div class="slider-container">
+        <label style="font-size: 14px; font-weight: 600; color: var(--text-dark);">미세 회전</label>
+        <input type="range" id="fineRotateSlider" class="rotation-slider" min="-90" max="90" value="0">
+        <span id="fineRotateValue" class="slider-value">0°</span>
+      </div>
+
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; gap: 10px;">
           <button id="rotateLeftBtn" class="btn-secondary">↺ 좌로 90도 회전</button>
-          <button id="rotateRightBtn" class="btn-secondary">↻ 우로 90도 회전</button>
+          <button id="flipVerticalBtn" class="btn-secondary">⇅ 상하 반전</button>
         </div>
         <div style="display: flex; gap: 10px;">
           <button id="cancelEditImageBtn" class="btn-secondary">취소</button>
-          <button id="saveEditImageBtn" class="btn-success">크롭/회전본 저장</button>
+          <button id="saveEditImageBtn" class="btn-success">크롭/편집본 저장</button>
         </div>
       </div>
     </div>
   </div>
-
   <div id="customAlertModal" class="modal"><div class="modal-content" style="max-width: 400px; text-align: center;"><div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;"><h3 style="color: var(--btn-navy);">알림</h3></div><div id="alertMessage" style="padding: 20px 0; font-size: 15px; color: var(--text-dark); line-height: 1.6;"></div><div class="modal-footer" style="justify-content: center; border-top: none;"><button class="btn-primary" id="closeAlertBtn" style="width: 100%;">확인</button></div></div></div>
 
   <div id="fullscreenViewer" class="fullscreen-viewer"><span class="close-viewer-btn" id="closeViewerBtn">&times;</span><img id="fullscreenImage" class="fullscreen-image" src="" alt="확대된 이미지"></div>

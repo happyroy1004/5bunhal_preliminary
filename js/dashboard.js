@@ -20,6 +20,10 @@ const editImagePreview = document.getElementById("editImagePreview");
 let currentCropper = null;
 let editTarget = { record: null, index: -1, originalName: "" };
 
+// 💡 편집을 위한 상태 변수
+let baseRotation = 0; 
+let flipY = 1;
+
 // 전역 변수
 let dirHandle = null; let patientsData = []; let activePatient = null; 
 let is5SplitMode = false; let isCompareMode = false; let selectedTagsFilter = new Set(); let selectedRecords = []; 
@@ -157,7 +161,6 @@ async function loadPhotosToPanel(record, panelPrefix) {
       const objUrl = URL.createObjectURL(file); 
       const posClass = is5SplitMode ? (i < 5 ? classes[i] : "") : "";
       
-      // 💡 해결된 부분: 버튼을 찾는 클래스를 확실하게 .edit 과 .delete 로 부여!
       html += `
         <div class="image-wrapper ${posClass}" data-index="${i}">
           <div class="image-overlay">
@@ -171,12 +174,10 @@ async function loadPhotosToPanel(record, panelPrefix) {
     viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; 
     viewer.innerHTML = html;
 
-    // 더블클릭 확대
     viewer.querySelectorAll('img').forEach(img => {
       img.ondblclick = () => { fullscreenImage.src = img.getAttribute('data-url'); fullscreenViewer.classList.add('show'); };
     });
 
-    // 💡 해결된 부분: HTML 클래스(.edit / .delete)와 정확히 일치시켜 버튼 동작 연결!
     viewer.querySelectorAll('.btn-icon.edit').forEach(btn => {
       btn.onclick = (e) => { e.stopPropagation(); openImageEditModal(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); }
     });
@@ -184,7 +185,7 @@ async function loadPhotosToPanel(record, panelPrefix) {
       btn.onclick = (e) => { e.stopPropagation(); deleteImage(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); }
     });
 
-  } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진 파일이 손상되었거나 폴더가 이동되었습니다.</div>"; }
+  } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진을 불러올 수 없습니다.</div>"; }
 }
 
 closeViewerBtn.onclick = () => fullscreenViewer.classList.remove('show');
@@ -207,6 +208,7 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => { is5SplitMode=!is5S
 document.getElementById("saveMemoBtnPrimary").onclick = async () => { if(!selectedRecords[0])return; selectedRecords[0].memo=document.getElementById("recordMemoPrimary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 document.getElementById("saveMemoBtnSecondary").onclick = async () => { if(!selectedRecords[1])return; selectedRecords[1].memo=document.getElementById("recordMemoSecondary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 
+// ====== 6. 사진 추가 ======
 addRecordBtn.onclick = () => { document.getElementById("recordDate").value = new Date().toISOString().split('T')[0]; recordModal.classList.add("show"); };
 document.getElementById("closeRecordModalBtn").onclick = () => recordModal.classList.remove("show"); document.getElementById("cancelRecordBtn").onclick = () => recordModal.classList.remove("show");
 document.getElementById("recordPhotos").addEventListener("change", (e) => { const f=e.target.files; if(f.length>0){ let o=f[0].lastModified; for(let i=1;i<f.length;i++){if(f[i].lastModified<o) o=f[i].lastModified;} const d=new Date(o); document.getElementById("recordDate").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; } });
@@ -226,7 +228,7 @@ addRecordForm.onsubmit = async (e) => {
   } catch(err){ showNotification("오류: "+err.message); } finally { sb.innerText="로컬 폴더에 저장"; sb.disabled=false; }
 };
 
-// 💡 사진 삭제
+// ====== 7. 사진 삭제 ======
 async function deleteImage(record, index, panelPrefix) {
   if(!confirm("이 사진을 삭제하시겠습니까?\n(로컬 폴더의 실제 파일은 보존되며, 목록에서만 지워집니다.)")) return;
   record.images.splice(index, 1);
@@ -235,7 +237,7 @@ async function deleteImage(record, index, panelPrefix) {
   showNotification("사진이 삭제되었습니다.");
 }
 
-// 💡 사진 편집 (Cropper)
+// ====== 8. 사진 편집 (회전/상하반전/크롭/미세조정) ======
 document.getElementById("closeEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 document.getElementById("cancelEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 
@@ -253,9 +255,15 @@ async function openImageEditModal(record, index, panelPrefix) {
     editImagePreview.src = URL.createObjectURL(file);
     imageEditModal.classList.add("show");
 
+    // 초기화
+    baseRotation = 0;
+    flipY = 1;
+    document.getElementById("fineRotateSlider").value = 0;
+    document.getElementById("fineRotateValue").innerText = "0°";
+
     if (currentCropper) currentCropper.destroy();
     currentCropper = new Cropper(editImagePreview, {
-      aspectRatio: 3 / 4,
+      aspectRatio: 4 / 3, // 💡 가로4 세로3
       viewMode: 1,
       dragMode: 'move',
       background: false
@@ -263,8 +271,29 @@ async function openImageEditModal(record, index, panelPrefix) {
   } catch(e) { showNotification("원본 파일을 찾을 수 없어 편집할 수 없습니다."); }
 }
 
-document.getElementById("rotateLeftBtn").onclick = () => { if(currentCropper) currentCropper.rotate(-90); };
-document.getElementById("rotateRightBtn").onclick = () => { if(currentCropper) currentCropper.rotate(90); };
+// 💡 슬라이더와 버튼에 의한 종합 회전 적용 함수
+function updateCropperTransform() {
+  const fineRot = parseInt(document.getElementById("fineRotateSlider").value);
+  currentCropper.rotateTo(baseRotation + fineRot);
+}
+
+// 좌로 90도 회전
+document.getElementById("rotateLeftBtn").onclick = () => { 
+  if(currentCropper) { baseRotation -= 90; updateCropperTransform(); } 
+};
+
+// 💡 상하 반전 추가
+document.getElementById("flipVerticalBtn").onclick = () => { 
+  if(currentCropper) { flipY = flipY === 1 ? -1 : 1; currentCropper.scaleY(flipY); } 
+};
+
+// 💡 미세 회전 슬라이더 동작
+document.getElementById("fineRotateSlider").addEventListener("input", (e) => {
+  if(currentCropper) {
+    document.getElementById("fineRotateValue").innerText = e.target.value + "°";
+    updateCropperTransform();
+  }
+});
 
 document.getElementById("saveEditImageBtn").onclick = async () => {
   if (!currentCropper) return;
@@ -293,12 +322,12 @@ document.getElementById("saveEditImageBtn").onclick = async () => {
       await savePatientsData();
       imageEditModal.classList.remove("show");
       renderViewPanels(); 
-      showNotification("크롭/회전 편집본이 고화질로 저장되었습니다.");
+      showNotification("크롭/편집본이 고화질로 저장되었습니다.");
       
-      btn.innerText = "크롭/회전본 저장"; btn.disabled = false;
+      btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
     }, 'image/jpeg', 1.0);
   } catch(e) {
     showNotification("저장 중 에러 발생");
-    btn.innerText = "크롭/회전본 저장"; btn.disabled = false;
+    btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
   }
 };
