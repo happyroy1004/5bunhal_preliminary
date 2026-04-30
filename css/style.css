@@ -99,3 +99,54 @@ button { outline: none; font-family: inherit; }
 .pos-lower { grid-column: 2; grid-row: 3; }
 
 .memo-box { background: #F8FAFC; padding: 20px; border-radius: 8px; border-left: 4px solid var(--btn-navy); margin-top: 20px; }
+
+/* ================== 다중 태그 필터 UI ================== */
+.tag-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.filter-chip {
+  background: white;
+  border: 1px solid var(--border-light);
+  color: var(--text-gray);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-chip:hover {
+  border-color: var(--btn-navy);
+  color: var(--btn-navy);
+}
+.filter-chip.active {
+  background: var(--btn-navy);
+  color: white;
+  border-color: var(--btn-navy);
+}
+
+/* ================== 증례 메모장 UI ================== */
+.memo-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-dark);
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 10px;
+}
+.memo-textarea:focus {
+  outline: none;
+  border-color: var(--btn-navy);
+}
+.memo-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
