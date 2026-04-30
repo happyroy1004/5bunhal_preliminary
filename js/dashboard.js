@@ -373,6 +373,7 @@ compareModeBtn.onclick = () => {
   isCompareMode = !isCompareMode;
   if (isCompareMode) {
     compareModeBtn.innerText = "비교 모드 (Before/After) ON"; compareModeBtn.classList.replace("btn-secondary", "btn-primary");
+    compareModeBtn.style.color = "white";
     viewsContainer.className = "compare-layout"; secondaryViewPanel.style.display = "block";
     
     // 자동 두 번째 항목 선택 보조
@@ -382,6 +383,7 @@ compareModeBtn.onclick = () => {
     }
   } else {
     compareModeBtn.innerText = "비교 모드 (Before/After) OFF"; compareModeBtn.classList.replace("btn-primary", "btn-secondary");
+    compareModeBtn.style.color = "var(--btn-navy)";
     viewsContainer.className = "single-layout"; secondaryViewPanel.style.display = "none";
     if (selectedRecords.length > 1) selectedRecords = [selectedRecords[1]]; // 비교모드 끄면 최신날짜 1개만 유지
   }
