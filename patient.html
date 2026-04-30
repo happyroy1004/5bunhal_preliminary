@@ -2,23 +2,87 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>환자 증례 상세 - 치과 증례 기록</title>
   <link rel="stylesheet" href="css/style.css">
-  <script type="module" src="js/patient.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <header class="main-header">
-    <button onclick="history.back()">← 목록으로</button>
-    <h2 id="patientName"></h2>
+    <div class="header-content">
+      <button onclick="history.back()" class="btn-back">← 목록으로</button>
+      <div class="patient-info">
+        <h2 id="patientName">진료번호, 환자A</h2>
+        <div id="patientTagsDisplay" class="tags-display"></div>
+      </div>
+      <div class="header-actions">
+        <button id="editPatientBtn" class="btn-secondary">환자 정보 수정</button>
+        <button id="deletePatientBtn" class="btn-danger">환자 삭제</button>
+      </div>
+    </div>
   </header>
 
-  <main class="timeline-container">
-    <div>
-      <button id="addRecordBtn">+ 새 증례 기록</button>
-      <button id="fiveSplitBtn">5분할 모드 OFF</button>
+  <main class="patient-container">
+    <!-- 특이사항 -->
+    <section class="special-notes">
+      <h3>특이 사항</h3>
+      <textarea 
+        id="specialNotes" 
+        placeholder="특이사항 기록 가능함"
+        rows="3"
+      ></textarea>
+      <button id="saveNotesBtn" class="btn-primary btn-sm">저장</button>
+    </section>
+
+    <!-- 타임라인 헤더 -->
+    <div class="timeline-header">
+      <h3>치료 타임라인</h3>
+      <button id="addRecordBtn" class="btn-primary">+ 새 증례 기록</button>
     </div>
 
-    <div id="recordTimeline" class="timeline"></div>
-    <div id="recordView" class="record-view"></div>
+    <!-- 타임라인 -->
+    <div id="recordTimeline" class="timeline">
+      <!-- 타임라인 아이템이 동적으로 추가됨 -->
+      <div class="loading">증례 기록을 불러오는 중...</div>
+    </div>
+
+    <!-- 증례 상세 뷰 -->
+    <div id="recordView" class="record-view">
+      <div class="empty-state">
+        <p>증례를 선택하면 상세 내용이 표시됩니다</p>
+      </div>
+    </div>
   </main>
+
+  <!-- 새 증례 추가 모달 -->
+  <div id="addRecordModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>새 증례 기록</h3>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="addRecordForm">
+        <div class="input-group">
+          <label for="recordDate">날짜 *</label>
+          <input type="date" id="recordDate" required>
+        </div>
+        <div class="input-group">
+          <label for="recordTitle">진료 내용</label>
+          <input type="text" id="recordTitle" placeholder="예: 초진, 재진료, 보철 등">
+        </div>
+        <div class="input-group">
+          <label for="recordMemo">메모</label>
+          <textarea id="recordMemo" rows="3" placeholder="#23 치아 수복"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button>
+          <button type="submit" class="btn-primary">다음: 사진 업로드</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/patient.js"></script>
 </body>
 </html>
