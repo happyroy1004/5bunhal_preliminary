@@ -91,7 +91,17 @@ async function _finishFolderSetup() {
 function _initModules() {
   initAddPatientModal({ getDirHandle, getPatients, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); }, showAlert });
   initEditPatientModal({ getPatient, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); _openPatientDetail(activePatient); }, showAlert });
-  initRecordModal({ getDirHandle, getPatient, savePatients: _savePatients, onSaved: () => _renderTimeline(), showAlert });
+  
+  // 💡 [수정됨] 5분할 상태를 안전하게 넘겨주기 위해 getIs5SplitMode 추가!
+  initRecordModal({ 
+    getDirHandle, 
+    getPatient, 
+    savePatients: _savePatients, 
+    onSaved: () => _renderTimeline(), 
+    showAlert,
+    getIs5SplitMode: () => is5SplitMode 
+  });
+  
   initEditor({ getDirHandle, getPatient, getPatients, onSaved: () => _renderViewPanels(), showAlert });
 }
 

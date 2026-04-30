@@ -1,18 +1,14 @@
-import { classifyImage } from "./classifier.js";
+// js/record-modal.js
+
+// 💡 1. 여기서 옛날 이름(classifyImage)을 새 이름(classifyAndCropImage)으로 바꿉니다!
+import { classifyAndCropImage } from "./classifier.js"; 
 import { saveImageFile } from "./storage.js";
 
 /**
  * 진료 기록 추가 모달을 초기화합니다.
- * "기록 저장" 버튼 클릭 시 각 이미지를 분류하고 class_id를 함께 저장합니다.
- *
- * @param {object} opts
- * @param {Function} opts.getDirHandle   - () => dirHandle
- * @param {Function} opts.getPatient     - () => activePatient
- * @param {Function} opts.savePatients   - () => Promise<void>
- * @param {Function} opts.onSaved        - 저장 완료 후 콜백 ()=>void
- * @param {Function} opts.showAlert      - (msg) => void
  */
-export function initRecordModal({ getDirHandle, getPatient, savePatients, onSaved, showAlert }) {
+// 💡 2. 매개변수에 getIs5SplitMode 를 추가로 받습니다.
+export function initRecordModal({ getDirHandle, getPatient, savePatients, onSaved, showAlert, getIs5SplitMode }) {
   const modal     = document.getElementById("addRecordModal");
   const form      = document.getElementById("addRecordForm");
   const openBtn   = document.getElementById("addRecordBtn");
@@ -29,7 +25,6 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     modal.classList.add("show");
   };
 
-  // 파일 선택 시 가장 오래된 파일의 날짜를 자동 입력
   photosInput.addEventListener("change", e => {
     const files = e.target.files;
     if (!files.length) return;
@@ -50,10 +45,8 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     const saveBtn = form.querySelector(".btn-success");
     saveBtn.innerText = "저장 중..."; saveBtn.disabled = true;
 
-    // 💡 [추가] 글로벌 변수 is5SplitMode 상태를 가져올 수 있도록
-    // dashboard.js 에서 이 값을 받아올 수 있는 getter 함수(opts.getIs5SplitMode)가 필요합니다.
-    // 임시로 true/false를 어떻게 판단할지, dashboard의 UI 상태를 보고 판단합니다.
-    const is5SplitModeOn = document.getElementById("toggle5SplitBtn").innerText.includes("ON");
+    // 💡 3. 화면 글자를 읽는 대신, 전달받은 안전한 함수로 상태를 확인합니다.
+    const is5SplitModeOn = getIs5SplitMode();
 
     try {
       const savedImages = [];
@@ -61,29 +54,25 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // 1. 파일 저장 (이건 공통)
         await saveImageFile(getDirHandle(), getPatient(), dateStr, file);
 
         let classId = null;
         let croppedFileName = null;
 
-        // 💡 2. 5분할 모드가 ON일 때만 AI 분류 및 자동 크롭 실행!
+        // 5분할 모드가 ON일 때만 AI 분류 및 자동 크롭 실행
         if (is5SplitModeOn) {
-          // AI 분류 함수 호출 (이제 이 함수가 크롭된 파일까지 만들어줍니다!)
           const aiResult = await classifyAndCropImage(file, getDirHandle(), getPatient(), dateStr);
           classId = aiResult.classId;
           croppedFileName = aiResult.croppedFileName; 
         }
 
-        // 3. 기록에 추가 (크롭된 파일이 있으면 edited 속성에 바로 넣어줍니다)
         savedImages.push({ 
           original: file.name, 
-          edited: croppedFileName, // AI가 크롭해줬으면 그 파일명, 아니면 null
+          edited: croppedFileName, 
           class_id: classId 
         });
       }
 
-      // ... 기존의 existingRecord 병합 및 저장 로직은 그대로 유지 ...
       const patient = getPatient();
       if (!patient.records) patient.records = [];
       
