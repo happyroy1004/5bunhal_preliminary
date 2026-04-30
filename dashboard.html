@@ -35,11 +35,7 @@
 
         <div class="toolbar" style="opacity: 0.5; pointer-events: none; flex-wrap: wrap; gap: 15px;" id="mainToolbar">
           <input type="text" id="searchPatient" class="search-input" placeholder="🔍 환자명 또는 진료번호 검색..." style="width: 300px;">
-          
-          <div class="tag-filter-container" id="tagFilterContainer">
-            <!-- JS에서 동적으로 버튼 생성 -->
-          </div>
-          
+          <div class="tag-filter-container" id="tagFilterContainer"></div>
           <button id="addPatientBtn" class="btn-success" style="margin-left: auto;">+ 새 환자 등록</button>
         </div>
 
@@ -67,33 +63,57 @@
           </div>
         </div>
 
-        <!-- 💡 환자 전체 특이사항 (Global Memo) -->
+        <!-- 전체 특이사항 (Global Memo) -->
         <div class="global-memo-box">
           <div class="memo-header-flex">
             <h4 style="color: var(--btn-green); margin: 0;">📌 환자 전체 특이사항 (Global Memo)</h4>
-            <button id="saveGlobalMemoBtn" class="btn-success" style="padding: 6px 12px; font-size: 12px;">전체 특이사항 저장</button>
+            <button id="saveGlobalMemoBtn" class="btn-success" style="padding: 6px 12px; font-size: 12px;">특이사항 저장</button>
           </div>
-          <textarea id="globalPatientMemo" class="memo-textarea" placeholder="환자의 전신 질환(고혈압, 당뇨 등), 전체적인 치료 계획, 핵심 주의사항 등을 기록하세요..."></textarea>
+          <textarea id="globalPatientMemo" class="memo-textarea" placeholder="환자의 전신 질환, 전체 치료 계획 등을 기록하세요..."></textarea>
         </div>
 
-        <h3 style="margin-top: 30px; margin-bottom: 15px; color: var(--btn-navy);">치료 타임라인</h3>
+        <!-- 타임라인 & 뷰어 컨트롤러 통합 -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; margin-bottom: 5px;">
+          <h3 style="margin: 0; color: var(--btn-navy);">치료 타임라인</h3>
+          <div style="display: flex; gap: 10px;">
+            <button id="toggle5SplitBtn" class="btn-primary">5분할 모드 OFF</button>
+            <button id="compareModeBtn" class="btn-secondary" style="border-color: var(--btn-navy); color: var(--btn-navy);">비교 모드 (Before/After) OFF</button>
+          </div>
+        </div>
         <div class="timeline-bar" id="timelineBar"></div>
 
-        <div class="record-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 id="currentRecordDate" style="color: var(--text-dark);">날짜를 선택하세요</h3>
-          <button id="toggle5SplitBtn" class="btn-primary">5분할 모드 OFF</button>
-        </div>
-        
-        <div id="photoViewerArea" class="image-grid"></div>
-
-        <!-- 💡 진료일별 차트 및 메모 (Daily Record Memo) -->
-        <div class="record-memo-box">
-          <div class="memo-header-flex">
-            <h4 style="color: var(--btn-navy); margin: 0;">📝 <span id="recordMemoTitleDate">진료일</span> 차트 및 처치 내용</h4>
-            <button id="saveRecordMemoBtn" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">해당일 차트 저장</button>
+        <!-- 💡 단일 뷰 & 2단 비교 뷰 컨테이너 -->
+        <div id="viewsContainer" class="single-layout">
+          
+          <!-- 좌측/기본 패널 (Primary) -->
+          <div class="view-panel" id="primaryViewPanel">
+            <h3 id="recordDatePrimary" style="color: var(--btn-navy); margin-bottom: 15px; font-size: 20px;">날짜를 선택하세요</h3>
+            <div id="photoViewerPrimary" class="image-grid"></div>
+            
+            <div class="record-memo-box compare-left">
+              <div class="memo-header-flex">
+                <h4 style="color: var(--btn-navy); margin: 0;">📝 <span id="recordMemoTitlePrimary">진료일</span> 차트</h4>
+                <button id="saveMemoBtnPrimary" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">차트 저장</button>
+              </div>
+              <textarea id="recordMemoPrimary" class="memo-textarea" placeholder="해당 진료일의 처치 내용을 기록하세요..."></textarea>
+            </div>
           </div>
-          <textarea id="currentRecordMemo" class="memo-textarea" placeholder="선택한 진료일에 대한 구체적인 처치 내용, 사용 재료, 다음 예약 사항 등을 기록하세요..."></textarea>
-        </div>
+
+          <!-- 우측 패널 (Secondary - 비교 모드 시에만 등장) -->
+          <div class="view-panel" id="secondaryViewPanel" style="display: none;">
+            <h3 id="recordDateSecondary" style="color: var(--btn-green); margin-bottom: 15px; font-size: 20px;">비교할 날짜를 타임라인에서 선택하세요</h3>
+            <div id="photoViewerSecondary" class="image-grid"></div>
+            
+            <div class="record-memo-box compare-right">
+              <div class="memo-header-flex">
+                <h4 style="color: var(--btn-green); margin: 0;">📝 <span id="recordMemoTitleSecondary">진료일</span> 차트</h4>
+                <button id="saveMemoBtnSecondary" class="btn-success" style="padding: 6px 12px; font-size: 12px;">차트 저장</button>
+              </div>
+              <textarea id="recordMemoSecondary" class="memo-textarea" placeholder="해당 진료일의 처치 내용을 기록하세요..."></textarea>
+            </div>
+          </div>
+
+        </div> <!-- /viewsContainer -->
       </div>
 
     </div>
@@ -116,11 +136,10 @@
           </div>
         </div>
         <div class="input-group">
-          <label>초진 날짜 (타임라인 계산 기준)</label><input type="date" id="initialVisitDate" required>
+          <label>초진 날짜</label><input type="date" id="initialVisitDate" required>
         </div>
         <div class="input-group">
-          <label>태그 (쉼표로 구분하여 무한 생성)</label>
-          <input type="text" id="patientTags" placeholder="예: 고혈압, 당뇨, 발치">
+          <label>태그 (쉼표로 구분하여 생성)</label><input type="text" id="patientTags" placeholder="예: 신경치료, 크라운">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" id="cancelPatientBtn">취소</button>
@@ -139,21 +158,11 @@
       </div>
       <form id="editPatientForm">
         <div class="two-col-group">
-          <div class="input-group">
-            <label>환자명</label><input type="text" id="editPatientName" required>
-          </div>
-          <div class="input-group">
-            <label>진료번호</label><input type="text" id="editChartNumber" disabled style="background:#eee;">
-          </div>
+          <div class="input-group"><label>환자명</label><input type="text" id="editPatientName" required></div>
+          <div class="input-group"><label>진료번호</label><input type="text" id="editChartNumber" disabled style="background:#eee;"></div>
         </div>
-        <div class="input-group">
-          <label>초진 날짜 (수정 가능)</label>
-          <input type="date" id="editInitialVisitDate" required>
-        </div>
-        <div class="input-group">
-          <label>태그 (쉼표로 구분)</label>
-          <input type="text" id="editPatientTags">
-        </div>
+        <div class="input-group"><label>초진 날짜</label><input type="date" id="editInitialVisitDate" required></div>
+        <div class="input-group"><label>태그 (쉼표로 구분)</label><input type="text" id="editPatientTags"></div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" id="cancelEditPatientBtn">취소</button>
           <button type="submit" class="btn-success">정보 저장</button>
@@ -175,13 +184,8 @@
           <input type="file" id="recordPhotos" accept="image/*" multiple required>
           <p style="font-size: 11px; color: var(--text-gray); margin-top: 4px;">가장 오래된 원본 생성일이 진료 날짜로 자동 설정됩니다.</p>
         </div>
-        <div class="input-group">
-          <label>진료 날짜</label><input type="date" id="recordDate" required>
-        </div>
-        <div class="input-group">
-          <label>간단 메모 (선택사항)</label>
-          <input type="text" id="recordMemo" placeholder="예: #23 치아 수복 완료">
-        </div>
+        <div class="input-group"><label>진료 날짜</label><input type="date" id="recordDate" required></div>
+        <div class="input-group"><label>간단 메모 (선택사항)</label><input type="text" id="recordMemo"></div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button>
           <button type="submit" class="btn-success">로컬 폴더에 저장</button>
