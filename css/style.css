@@ -150,3 +150,57 @@ button { outline: none; font-family: inherit; }
   align-items: center;
   margin-bottom: 10px;
 }
+
+/* ================== 타임라인 가로형 + 연결선 UI ================== */
+.timeline-bar { 
+  display: flex; 
+  align-items: center; 
+  overflow-x: auto; 
+  padding: 40px 10px 20px 10px; /* 라벨 공간 확보를 위해 위쪽 패딩 증가 */
+  border-bottom: 2px solid var(--border-light); 
+  margin-bottom: 30px; 
+}
+.timeline-item { 
+  position: relative;
+  min-width: 90px; 
+  text-align: center; 
+  cursor: pointer; 
+  padding: 10px 15px; 
+  border-radius: 8px; 
+  transition: 0.2s; 
+  background: #F8FAFC; 
+  border: 2px solid var(--border-light); 
+  z-index: 2; /* 선 위로 올라오게 */
+}
+.timeline-item.active { 
+  border-color: var(--btn-navy); 
+  background: #EFF6FF; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.timeline-date { font-weight: 700; color: var(--text-dark); font-size: 14px; }
+.timeline-label { font-size: 12px; color: var(--text-gray); margin-top: 4px; }
+
+/* 점 사이를 잇는 선과 기간 텍스트 */
+.timeline-connector {
+  flex-grow: 1;
+  min-width: 60px;
+  height: 4px;
+  background-color: var(--border-light);
+  position: relative;
+  z-index: 1;
+  margin: 0 -5px; /* 노드와 살짝 겹치게 */
+}
+.interval-text {
+  position: absolute;
+  top: -28px; /* 선 위로 띄우기 */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--btn-navy);
+  background: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  white-space: nowrap;
+}
