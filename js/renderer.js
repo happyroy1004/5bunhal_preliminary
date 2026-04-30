@@ -1,3 +1,5 @@
+// js/renderer.js
+
 import { CLASS_NAME_KR, CLASS_POSITION_CSS } from "./classifier.js";
 import { getDateFolder } from "./storage.js";
 
@@ -65,6 +67,7 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
     const imgData  = record.images.find(img => img.class_id === classId);
 
     if (!imgData) {
+      // 💡 [Drag & Drop 대응] 사진이 없는 슬롯도 드래그 가능하게 설정
       html += `
         <div class="image-wrapper ${posClass}" data-class-id="${classId}" draggable="true"
              style="display:flex;align-items:center;justify-content:center;
@@ -80,6 +83,7 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
     try {
       const fh  = await dFolder.getFileHandle(imgData.edited || imgData.original);
       const url = URL.createObjectURL(await fh.getFile());
+      // 💡 [Drag & Drop 대응] draggable 속성 및 data-class-id 추가
       html += `
         <div class="image-wrapper ${posClass}" data-index="${index}" data-class-id="${classId}" draggable="true">
           <div class="image-overlay">
@@ -105,7 +109,7 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
 
   viewer.innerHTML = html;
   _bindEvents(viewer, record, onDelete, onEdit, onFullscreen);
-  _bindDragAndDrop(viewer, record); 
+  _bindDragAndDrop(viewer, record); // 💡 Drag & Drop 이벤트 바인딩 호출
 }
 
 // ──────────────────────────────────────────
@@ -152,41 +156,76 @@ function _bindEvents(viewer, record, onDelete, onEdit, onFullscreen) {
   viewer.querySelectorAll(".btn-icon.delete").forEach(btn => { btn.onclick = e => { e.stopPropagation(); onDelete(record, parseInt(e.target.closest(".image-wrapper").dataset.index)); }; });
 }
 
+// ──────────────────────────────────────────
+// 💡 Drag & Drop 이벤트 바인딩 함수
+// ──────────────────────────────────────────
 function _bindDragAndDrop(viewer, record) {
   let draggedEl = null;
   const wrappers = viewer.querySelectorAll('.image-wrapper');
   
   wrappers.forEach(wrapper => {
-    wrapper.addEventListener('dragstart', function(e) { draggedEl = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); this.style.opacity = '0.4'; });
-    wrapper.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; });
-    wrapper.addEventListener('dragenter', function(e) { this.style.border = '2px dashed var(--btn-navy)'; });
-    wrapper.addEventListener('dragleave', function(e) { this.style.border = ''; });
+    wrapper.addEventListener('dragstart', function(e) {
+      draggedEl = this;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+      this.style.opacity = '0.4';
+    });
+
+    wrapper.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    });
+
+    wrapper.addEventListener('dragenter', function(e) {
+      this.style.border = '2px dashed var(--btn-navy)';
+    });
+
+    wrapper.addEventListener('dragleave', function(e) {
+      this.style.border = '';
+    });
+
     wrapper.addEventListener('drop', function(e) {
-      e.stopPropagation(); this.style.border = '';
+      e.stopPropagation();
+      this.style.border = '';
+      
       if (draggedEl !== this) {
+        // 교체될 슬롯의 class_id 추출
         const draggedClassId = parseInt(draggedEl.getAttribute('data-class-id'));
         const targetClassId = parseInt(this.getAttribute('data-class-id'));
 
+        // 데이터베이스(record.images) 내의 객체 찾기
         const draggedImg = record.images.find(img => img.class_id === draggedClassId);
         const targetImg = record.images.find(img => img.class_id === targetClassId);
 
+        // class_id 스왑
         if (draggedImg) draggedImg.class_id = targetClassId;
         if (targetImg) targetImg.class_id = draggedClassId;
 
+        // UI 즉시 반영을 위한 CSS 클래스 교체
         const draggedPosClass = CLASS_POSITION_CSS[draggedClassId];
         const targetPosClass = CLASS_POSITION_CSS[targetClassId];
         
-        draggedEl.classList.remove(draggedPosClass); draggedEl.classList.add(targetPosClass); draggedEl.setAttribute('data-class-id', targetClassId);
-        this.classList.remove(targetPosClass); this.classList.add(draggedPosClass); this.setAttribute('data-class-id', draggedClassId);
+        draggedEl.classList.remove(draggedPosClass);
+        draggedEl.classList.add(targetPosClass);
+        draggedEl.setAttribute('data-class-id', targetClassId);
+        
+        this.classList.remove(targetPosClass);
+        this.classList.add(draggedPosClass);
+        this.setAttribute('data-class-id', draggedClassId);
       }
       return false;
     });
-    wrapper.addEventListener('dragend', function(e) { this.style.opacity = '1'; wrappers.forEach(w => w.style.border = ''); });
+
+    wrapper.addEventListener('dragend', function(e) {
+      this.style.opacity = '1';
+      wrappers.forEach(w => w.style.border = '');
+    });
   });
 }
 
 // ──────────────────────────────────────────
-// 💡 [NEW] 5분할 고화질 다운로드 (투명 배경, 십자형)
+// 5분할 고화질 다운로드 (투명 배경, 십자형)
 // ──────────────────────────────────────────
 export async function export5SplitImage(record, dirHandle, activePatient) {
   if (!record.images || record.images.length === 0) {

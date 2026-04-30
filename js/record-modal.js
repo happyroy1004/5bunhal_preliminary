@@ -67,13 +67,32 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
 
       const patient = getPatient();
       if (!patient.records) patient.records = [];
-      patient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedImages });
+      
+      // 💡 [수정된 핵심 로직] 같은 날짜(dateStr)의 기록이 이미 존재하는지 검사!
+      const existingRecord = patient.records.find(r => r.date === dateStr);
+      
+      if (existingRecord) {
+        // 이미 같은 날짜의 기록이 있다면 사진을 기존 배열에 병합(Merge)
+        existingRecord.images.push(...savedImages);
+        
+        // 메모 내용도 비어있지 않다면 기존 메모 아래에 줄바꿈으로 추가
+        if (memoStr.trim() !== "") {
+          if (existingRecord.memo) {
+            existingRecord.memo += "\n" + memoStr;
+          } else {
+            existingRecord.memo = memoStr;
+          }
+        }
+      } else {
+        // 같은 날짜의 기록이 없다면 기존처럼 새 노드로 추가
+        patient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedImages });
+      }
 
       await savePatients();
       _close();
       form.reset();
       onSaved();
-      showAlert("진료 기록이 추가되었습니다.");
+      showAlert("진료 기록이 성공적으로 추가되었습니다.");
     } catch (err) {
       showAlert("오류: " + err.message);
     } finally {
