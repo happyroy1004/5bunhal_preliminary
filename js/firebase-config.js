@@ -1,8 +1,7 @@
-import { initializeApp } from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js)";
-import { getAuth } from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js)";
-import { getFirestore } from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js)";
-import { getStorage } from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js)";
-
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
