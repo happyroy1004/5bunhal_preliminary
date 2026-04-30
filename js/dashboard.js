@@ -12,12 +12,10 @@ const mainToolbar = document.getElementById("mainToolbar");
 const patientList = document.getElementById("patientList");
 const tagSelect = document.getElementById("tagSelect");
 
-// 화면 전환용
 const sectionList = document.getElementById("patientListSection");
 const sectionDetail = document.getElementById("patientDetailSection");
 const backToListBtn = document.getElementById("backToListBtn");
 
-// 모달들
 const patientModal = document.getElementById("addPatientModal");
 const addPatientBtn = document.getElementById("addPatientBtn");
 const addPatientForm = document.getElementById("addPatientForm");
@@ -43,7 +41,7 @@ onAuthStateChanged(auth, (user) => {
     navUserName.innerText = displayName;
     greetingName.innerText = displayName;
   } else {
-    window.location.href = "index.html"; // 미로그인 시 차단
+    window.location.href = "index.html";
   }
 });
 
@@ -56,7 +54,6 @@ logoutBtn.onclick = async () => {
   }
 };
 
-// ====== 커스텀 알림창 ======
 function showNotification(msg) {
   alertMessage.innerHTML = msg.replace(/\n/g, '<br>');
   customAlertModal.classList.add("show");
@@ -64,7 +61,6 @@ function showNotification(msg) {
 closeAlertBtn.onclick = () => customAlertModal.classList.remove("show");
 
 // ====== 2. 폴더 영구 기억 시스템 (IndexedDB 활용) ======
-// 브라우저 DB에 폴더 핸들을 저장하여 새로고침 시에도 유지합니다.
 function getDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("DentalCaseDB", 1);
@@ -97,7 +93,6 @@ async function verifyPermission(fileHandle) {
   return false;
 }
 
-// 자동 로드 실행
 window.addEventListener('DOMContentLoaded', async () => {
   const savedHandle = await loadDirectoryHandle();
   if (savedHandle) {
@@ -110,11 +105,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     };
   } else {
-    // 최초 접속 시 일반 버튼 동작
     selectFolderBtn.onclick = async () => {
       try {
         dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-        await saveDirectoryHandle(dirHandle); // DB에 저장
+        await saveDirectoryHandle(dirHandle); 
         finishFolderSetup();
       } catch (error) {
         console.error("폴더 선택 취소:", error);
@@ -170,7 +164,7 @@ function renderPatients() {
         <span class="patient-name">${p.name}</span>
         <span style="color:#64748B; font-size:12px;">${p.chartNumber}</span>
       </div>
-      <div style="font-size: 13px; color: #64748B; margin-bottom: 10px;">${infoText || '추가 정보 없음'}</div>
+      <div style="font-size: 13px; color: #64748B; margin-bottom: 10px;">초진: ${p.initialVisitDate || '미상'} | ${infoText || '추가 정보 없음'}</div>
       <div>${tagsHtml}</div>
     `;
     card.onclick = () => openPatientDetail(p);
@@ -188,7 +182,10 @@ function updateTagDropdown() {
 }
 
 // ====== 4. 새 환자 등록 ======
-addPatientBtn.onclick = () => patientModal.classList.add("show");
+addPatientBtn.onclick = () => {
+  document.getElementById("initialVisitDate").value = new Date().toISOString().split('T')[0]; // 오늘 날짜로 기본 세팅
+  patientModal.classList.add("show");
+};
 document.getElementById("closePatientModalBtn").onclick = () => patientModal.classList.remove("show");
 document.getElementById("cancelPatientBtn").onclick = () => patientModal.classList.remove("show");
 
@@ -196,12 +193,13 @@ addPatientForm.onsubmit = async (e) => {
   e.preventDefault();
   const name = document.getElementById("patientName").value.trim();
   const chart = document.getElementById("chartNumber").value.trim();
+  const initialVisit = document.getElementById("initialVisitDate").value; // 초진 날짜 저장
   const gender = document.getElementById("patientGender").value;
   const age = document.getElementById("patientAge").value;
   const tags = document.getElementById("patientTags").value.split(',').map(t => t.trim()).filter(t => t);
 
   const newPatient = {
-    id: Date.now().toString(), chartNumber: chart, name: name,
+    id: Date.now().toString(), chartNumber: chart, name: name, initialVisitDate: initialVisit,
     gender: gender, age: age, tags: tags, records: []
   };
 
@@ -236,7 +234,7 @@ function openPatientDetail(patient) {
   sectionDetail.style.display = "block";
 
   document.getElementById("detailPatientName").innerText = patient.name;
-  document.getElementById("detailChartNo").innerText = `진료번호: ${patient.chartNumber}`;
+  document.getElementById("detailChartNo").innerText = `진료번호: ${patient.chartNumber} | 기준 초진일: ${patient.initialVisitDate || '미설정'}`;
   document.getElementById("detailTags").innerHTML = (patient.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
   
   renderTimeline();
@@ -256,11 +254,18 @@ function renderTimeline() {
 
   activePatient.records.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-  activePatient.records.forEach((record, index) => {
+  activePatient.records.forEach((record) => {
     const box = document.createElement("div");
     box.className = "timeline-item";
     
-    let label = index === 0 ? "초진" : getElapsedTime(activePatient.records[0].date, record.date);
+    // 타임라인 라벨 계산 (설정된 초진일 기준)
+    let label = "";
+    if (activePatient.initialVisitDate) {
+      if (record.date === activePatient.initialVisitDate) label = "초진";
+      else label = getElapsedTime(activePatient.initialVisitDate, record.date);
+    } else {
+      label = "진료"; // 초진일이 없는 옛날 데이터 호환용
+    }
     
     box.innerHTML = `
       <div class="timeline-date">${record.date}</div>
@@ -280,9 +285,10 @@ function renderTimeline() {
 function getElapsedTime(startStr, currentStr) {
   const d1 = new Date(startStr); const d2 = new Date(currentStr);
   let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-  if(months === 0) return "당일";
+  if (months === 0) return "초진 당월";
+  if (months < 0) return "초진 이전";
   let y = Math.floor(months / 12); let m = months % 12;
-  return (y > 0 ? y + "Y" : "") + (m > 0 ? m + "M" : "");
+  return (y > 0 ? y + "Y " : "") + (m > 0 ? m + "M" : "");
 }
 
 async function loadPhotosForRecord(record) {
@@ -324,14 +330,29 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => {
   }
 };
 
-
-// ====== 6. 새 증례(사진) 기록 및 에러 방지 저장 로직 ======
+// ====== 6. 새 증례(사진) 기록 및 파일 날짜 자동 추출 ======
 addRecordBtn.onclick = () => {
   document.getElementById("recordDate").value = new Date().toISOString().split('T')[0];
   recordModal.classList.add("show");
 };
 document.getElementById("closeRecordModalBtn").onclick = () => recordModal.classList.remove("show");
 document.getElementById("cancelRecordBtn").onclick = () => recordModal.classList.remove("show");
+
+// 💡 사진 파일 선택 시 가장 오래된 파일의 수정/생성 날짜를 추출하여 진료 날짜에 자동 세팅
+document.getElementById("recordPhotos").addEventListener("change", (e) => {
+  const files = e.target.files;
+  if (files.length > 0) {
+    let oldestTime = files[0].lastModified;
+    for(let i = 1; i < files.length; i++) {
+      if(files[i].lastModified < oldestTime) oldestTime = files[i].lastModified;
+    }
+    const oldestDate = new Date(oldestTime);
+    const yyyy = oldestDate.getFullYear();
+    const mm = String(oldestDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(oldestDate.getDate()).padStart(2, '0');
+    document.getElementById("recordDate").value = `${yyyy}-${mm}-${dd}`;
+  }
+});
 
 addRecordForm.onsubmit = async (e) => {
   e.preventDefault();
@@ -359,7 +380,6 @@ addRecordForm.onsubmit = async (e) => {
       savedFileNames.push(file.name);
     }
 
-    // 💡 [핵심 해결 부분] 과거 데이터에 바구니가 없을 경우를 대비한 안전장치
     if (!activePatient.records) {
       activePatient.records = [];
     }
@@ -379,6 +399,3 @@ addRecordForm.onsubmit = async (e) => {
     submitBtn.innerText = "로컬 폴더에 사진 저장"; submitBtn.disabled = false;
   }
 };
-
-
-
