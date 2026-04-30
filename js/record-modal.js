@@ -50,41 +50,50 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     const saveBtn = form.querySelector(".btn-success");
     saveBtn.innerText = "저장 중..."; saveBtn.disabled = true;
 
+    // 💡 [추가] 글로벌 변수 is5SplitMode 상태를 가져올 수 있도록
+    // dashboard.js 에서 이 값을 받아올 수 있는 getter 함수(opts.getIs5SplitMode)가 필요합니다.
+    // 임시로 true/false를 어떻게 판단할지, dashboard의 UI 상태를 보고 판단합니다.
+    const is5SplitModeOn = document.getElementById("toggle5SplitBtn").innerText.includes("ON");
+
     try {
       const savedImages = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // 1. 파일 저장
+        // 1. 파일 저장 (이건 공통)
         await saveImageFile(getDirHandle(), getPatient(), dateStr, file);
 
-        // 2. AI 분류 (저장 시점에 실행)
-        const classId = await classifyImage(file);
+        let classId = null;
+        let croppedFileName = null;
 
-        savedImages.push({ original: file.name, edited: null, class_id: classId });
+        // 💡 2. 5분할 모드가 ON일 때만 AI 분류 및 자동 크롭 실행!
+        if (is5SplitModeOn) {
+          // AI 분류 함수 호출 (이제 이 함수가 크롭된 파일까지 만들어줍니다!)
+          const aiResult = await classifyAndCropImage(file, getDirHandle(), getPatient(), dateStr);
+          classId = aiResult.classId;
+          croppedFileName = aiResult.croppedFileName; 
+        }
+
+        // 3. 기록에 추가 (크롭된 파일이 있으면 edited 속성에 바로 넣어줍니다)
+        savedImages.push({ 
+          original: file.name, 
+          edited: croppedFileName, // AI가 크롭해줬으면 그 파일명, 아니면 null
+          class_id: classId 
+        });
       }
 
+      // ... 기존의 existingRecord 병합 및 저장 로직은 그대로 유지 ...
       const patient = getPatient();
       if (!patient.records) patient.records = [];
       
-      // 💡 [수정된 핵심 로직] 같은 날짜(dateStr)의 기록이 이미 존재하는지 검사!
       const existingRecord = patient.records.find(r => r.date === dateStr);
-      
       if (existingRecord) {
-        // 이미 같은 날짜의 기록이 있다면 사진을 기존 배열에 병합(Merge)
         existingRecord.images.push(...savedImages);
-        
-        // 메모 내용도 비어있지 않다면 기존 메모 아래에 줄바꿈으로 추가
         if (memoStr.trim() !== "") {
-          if (existingRecord.memo) {
-            existingRecord.memo += "\n" + memoStr;
-          } else {
-            existingRecord.memo = memoStr;
-          }
+          existingRecord.memo = existingRecord.memo ? existingRecord.memo + "\n" + memoStr : memoStr;
         }
       } else {
-        // 같은 날짜의 기록이 없다면 기존처럼 새 노드로 추가
         patient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedImages });
       }
 
@@ -92,7 +101,7 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
       _close();
       form.reset();
       onSaved();
-      showAlert("진료 기록이 성공적으로 추가되었습니다.");
+      showAlert(is5SplitModeOn ? "AI가 자동으로 분류 및 크롭하여 저장했습니다." : "진료 기록이 추가되었습니다.");
     } catch (err) {
       showAlert("오류: " + err.message);
     } finally {
