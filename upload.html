@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사진 업로드 및 편집 - 치과 증례 기록</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="main-header">
+    <div class="header-content">
+      <button onclick="history.back()" class="btn-back">← 돌아가기</button>
+      <h2>사진 업로드 및 편집</h2>
+      <div class="mode-switch">
+        <label class="switch">
+          <input type="checkbox" id="fiveSplitToggle">
+          <span class="slider"></span>
+        </label>
+        <span id="modeLabel">5분할 모드 OFF</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="upload-container">
+    <!-- 파일 업로드 영역 -->
+    <section class="upload-section" id="uploadSection">
+      <div class="upload-box" id="uploadBox">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <h3>클릭하거나 파일을 드래그하세요</h3>
+        <p>5분할 모드: 5장 이상 | 일반 모드: 제한 없음</p>
+        <input 
+          type="file" 
+          id="imageInput" 
+          accept="image/*" 
+          multiple 
+          style="display: none;"
+        >
+        <button class="btn-primary" id="selectFilesBtn">파일 선택</button>
+      </div>
+    </section>
+
+    <!-- 5분할 AI 처리 영역 -->
+    <section class="processing-section" id="processingSection" style="display: none;">
+      <div class="processing-status">
+        <h3>AI 분석 중...</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <p id="progressText">이미지를 분석하고 최적의 5장을 선택하고 있습니다...</p>
+      </div>
+    </section>
+
+    <!-- 5분할 결과 표시 -->
+    <section class="five-split-result" id="fiveSplitResult" style="display: none;">
+      <h3>5분할 배치 결과</h3>
+      <div class="five-grid">
+        <div class="grid-item empty" data-position="upper">
+          <div class="placeholder">상악 교합면</div>
+        </div>
+        <div class="grid-spacer"></div>
+        <div class="grid-spacer"></div>
+        
+        <div class="grid-item empty" data-position="left">
+          <div class="placeholder">좌측</div>
+        </div>
+        <div class="grid-item empty" data-position="front">
+          <div class="placeholder">정면</div>
+        </div>
+        <div class="grid-item empty" data-position="right">
+          <div class="placeholder">우측</div>
+        </div>
+        
+        <div class="grid-spacer"></div>
+        <div class="grid-item empty" data-position="lower">
+          <div class="placeholder">하악 교합면</div>
+        </div>
+        <div class="grid-spacer"></div>
+      </div>
+      <div class="result-actions">
+        <button class="btn-secondary" id="reprocessBtn">다시 처리</button>
+        <button class="btn-primary" id="saveFiveSplitBtn">저장</button>
+      </div>
+    </section>
+
+    <!-- 일반 이미지 편집 영역 -->
+    <section class="edit-section" id="editSection" style="display: none;">
+      <div class="image-list" id="imageList">
+        <!-- 업로드된 이미지 목록 -->
+      </div>
+      
+      <div class="crop-editor" id="cropEditor" style="display: none;">
+        <div class="editor-toolbar">
+          <h3>이미지 편집</h3>
+          <div class="editor-controls">
+            <button class="btn-tool" id="rotateLeftBtn" title="왼쪽 회전">↺</button>
+            <button class="btn-tool" id="rotateRightBtn" title="오른쪽 회전">↻</button>
+            <button class="btn-tool" id="flipHBtn" title="좌우 반전">⇄</button>
+            <button class="btn-tool" id="flipVBtn" title="상하 반전">⇅</button>
+            <button class="btn-tool" id="resetBtn" title="초기화">↶</button>
+          </div>
+        </div>
+        <div class="crop-container">
+          <img id="cropImage" style="max-width: 100%;">
+        </div>
+        <div class="editor-actions">
+          <button class="btn-secondary" id="cancelCropBtn">취소</button>
+          <button class="btn-primary" id="downloadCropBtn">다운로드</button>
+          <button class="btn-primary" id="applyCropBtn">적용 및 다음</button>
+        </div>
+      </div>
+
+      <div class="final-actions" id="finalActions">
+        <button class="btn-secondary" id="addMoreImagesBtn">+ 사진 추가</button>
+        <button class="btn-primary" id="saveAllImagesBtn">모두 저장</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/upload.js"></script>
+</body>
+</html>
