@@ -3,65 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>환자 목록 - 치과 증례 기록</title>
+  <title>치과 증례 기록 대시보드</title>
   <link rel="stylesheet" href="css/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
-<body>
-  <header class="main-header">
-    <div class="header-content">
-      <h2 id="userTitle">사용자의 증례 목록</h2>
-      <button id="logoutBtn" class="btn-secondary">로그아웃</button>
+<body class="dashboard-body">
+  
+  <header class="top-nav">
+    <div class="nav-brand">🦷 치과 증례 기록</div>
+    <div class="nav-user">
+      <span id="navUserName">로딩중...</span> 님
+      <button id="logoutBtn" class="btn-danger btn-sm">로그아웃</button>
     </div>
   </header>
 
-  <main class="container">
-    <div class="toolbar">
-      <div class="search-bar">
-        <input 
-          type="text" 
-          id="searchPatient" 
-          placeholder="🔍 환자명 / 진료번호 검색"
-        >
-      </div>
+  <main class="dashboard-container">
+    <div class="dashboard-card">
+      <h2 class="greeting-title"><span id="greetingName">로딩중</span> 님의 증례 목록입니다.</h2>
       
-      <div class="filter-tags" id="tagFilter">
-        <button class="tag-btn active" data-tag="all">전체</button>
-        <!-- 동적으로 태그 추가됨 -->
+      <div class="info-banner">
+        <div class="banner-text">
+          <span class="folder-icon">📁</span>
+          데이터는 브라우저 로컬 저장소에 저장됩니다. 백업을 위해 내보내기 기능을 사용하세요.
+        </div>
+        <div class="banner-actions">
+          <button class="btn-darkblue">데이터 내보내기</button>
+          <button class="btn-darkblue">데이터 가져오기</button>
+        </div>
       </div>
-      
-      <button id="addPatientBtn" class="btn-primary">+ 새 환자 등록</button>
-    </div>
 
-    <section id="patientList" class="patient-grid">
-      <!-- 환자 카드가 여기에 동적으로 추가됩니다 -->
-      <div class="loading">환자 목록을 불러오는 중...</div>
-    </section>
+      <div class="toolbar">
+        <input type="text" id="searchPatient" class="search-input" placeholder="환자명 또는 진료번호 검색...">
+        
+        <div class="tag-filter">
+          <label>태그:</label>
+          <select id="tagSelect" class="custom-select">
+            <option value="all">전체</option>
+            <option value="hypertension">고혈압</option>
+            <option value="diabetes">당뇨</option>
+          </select>
+        </div>
+        
+        <button id="openModalBtn" class="btn-success">+ 새 환자 등록</button>
+      </div>
+
+      <section id="patientList" class="patient-grid">
+        <div class="empty-state">
+          <div class="clipboard-icon">📋</div>
+          <h3>등록된 환자가 없습니다</h3>
+          <p>새 환자를 등록해주세요.</p>
+        </div>
+      </section>
+    </div>
   </main>
 
-  <!-- 새 환자 등록 모달 -->
   <div id="addPatientModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h3>새 환자 등록</h3>
-        <button class="close-btn">&times;</button>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
       </div>
       <form id="addPatientForm">
         <div class="input-group">
           <label for="patientName">환자명 *</label>
-          <input type="text" id="patientName" required placeholder="환자A">
+          <input type="text" id="patientName" required placeholder="예: 환자A">
         </div>
         <div class="input-group">
           <label for="chartNumber">진료번호</label>
-          <input type="text" id="chartNumber" placeholder="2025-001">
+          <input type="text" id="chartNumber" placeholder="예: 2025-001">
         </div>
         <div class="input-group">
           <label for="patientTags">태그 (쉼표로 구분)</label>
-          <input type="text" id="patientTags" placeholder="고혈압, 당뇨">
+          <input type="text" id="patientTags" placeholder="예: 고혈압, 당뇨">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" id="cancelBtn">취소</button>
-          <button type="submit" class="btn-primary">등록</button>
+          <button type="submit" class="btn-success">등록</button>
         </div>
       </form>
     </div>
