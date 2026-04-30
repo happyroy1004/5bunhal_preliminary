@@ -1,6 +1,6 @@
 import { auth } from "./firebase-config.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } 
-from "[gstatic.com](https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js)";
+from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
 const loginBtn = document.querySelector("#loginBtn");
 const signUpLink = document.querySelector("#signUpLink");
