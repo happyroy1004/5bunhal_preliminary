@@ -126,8 +126,7 @@ button { outline: none; font-family: inherit; }
   color: white;
   border-color: var(--btn-navy);
 }
-
-/* ================== 증례 메모장 UI ================== */
+/* ================== 증례 메모장 UI (전체 / 진료일별 분리) ================== */
 .memo-textarea {
   width: 100%;
   min-height: 100px;
@@ -139,10 +138,12 @@ button { outline: none; font-family: inherit; }
   resize: vertical;
   font-family: inherit;
   margin-bottom: 10px;
+  background: white;
+  transition: all 0.2s;
 }
 .memo-textarea:focus {
   outline: none;
-  border-color: var(--btn-navy);
+  box-shadow: 0 0 0 2px rgba(55, 74, 106, 0.1);
 }
 .memo-header-flex {
   display: flex;
@@ -150,6 +151,28 @@ button { outline: none; font-family: inherit; }
   align-items: center;
   margin-bottom: 10px;
 }
+
+/* 전체 특이사항 박스 (초록색 포인트) */
+.global-memo-box {
+  background: #F0FDF4; 
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid var(--btn-green);
+  margin-bottom: 30px;
+  margin-top: 20px;
+}
+.global-memo-box .memo-textarea:focus { border-color: var(--btn-green); }
+
+/* 진료일별 차트 박스 (파란색 포인트) */
+.record-memo-box {
+  background: #F8FAFC; 
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid var(--btn-navy);
+  margin-top: 20px;
+}
+.record-memo-box .memo-textarea:focus { border-color: var(--btn-navy); }
+
 
 /* ================== 타임라인 가로형 + 연결선 UI ================== */
 .timeline-bar { 
