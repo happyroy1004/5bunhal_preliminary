@@ -1,15 +1,16 @@
 // ====== DOM 요소 설정 ======
 const selectFolderBtn = document.getElementById("selectFolderBtn");
-const workspaceBanner = document.getElementById("workspaceBanner");
+const workspaceStatus = document.getElementById("workspaceStatus");
 const mainToolbar = document.getElementById("mainToolbar");
 const patientList = document.getElementById("patientList");
+const tagSelect = document.getElementById("tagSelect");
 
 // 화면 전환용
 const sectionList = document.getElementById("patientListSection");
 const sectionDetail = document.getElementById("patientDetailSection");
 const backToListBtn = document.getElementById("backToListBtn");
 
-// 환자 모달
+// 환자 등록 모달
 const patientModal = document.getElementById("addPatientModal");
 const addPatientBtn = document.getElementById("addPatientBtn");
 const addPatientForm = document.getElementById("addPatientForm");
@@ -19,22 +20,36 @@ const recordModal = document.getElementById("addRecordModal");
 const addRecordBtn = document.getElementById("addRecordBtn");
 const addRecordForm = document.getElementById("addRecordForm");
 
+// 커스텀 알림 모달 (alert 대체)
+const customAlertModal = document.getElementById("customAlertModal");
+const alertMessage = document.getElementById("alertMessage");
+const closeAlertBtn = document.getElementById("closeAlertBtn");
+
 // 전역 상태 변수
-let dirHandle = null;     // 최상위 작업 폴더 핸들
-let patientsData = [];    // 환자 DB (JSON)
-let activePatient = null; // 현재 보고 있는 환자
-let is5SplitMode = false; // 5분할 모드 상태
+let dirHandle = null;     
+let patientsData = [];    
+let activePatient = null; 
+let is5SplitMode = false; 
+
+// ====== 알림창(Alert) 커스텀 함수 ======
+function showNotification(msg) {
+  alertMessage.innerHTML = msg.replace(/\n/g, '<br>');
+  customAlertModal.classList.add("show");
+}
+closeAlertBtn.onclick = () => customAlertModal.classList.remove("show");
 
 // ====== 1. 폴더 선택 및 DB 로드 ======
 selectFolderBtn.onclick = async () => {
   try {
     dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-    workspaceBanner.innerHTML = `<div style="color:#5B8C65;">📁 연결된 작업 폴더: <b>${dirHandle.name}</b></div>`;
+    workspaceStatus.innerHTML = `연결된 작업 폴더: <b>${dirHandle.name}</b>`;
+    selectFolderBtn.style.display = "none";
     mainToolbar.style.opacity = "1";
     mainToolbar.style.pointerEvents = "auto";
+    
     await loadPatientsData();
   } catch (error) {
-    console.error("폴더 선택 에러:", error);
+    console.error("폴더 선택 취소:", error);
   }
 };
 
@@ -44,7 +59,9 @@ async function loadPatientsData() {
     const file = await fileHandle.getFile();
     const contents = await file.text();
     patientsData = contents ? JSON.parse(contents) : [];
+    
     renderPatients();
+    updateTagDropdown();
   } catch (error) {
     console.error("데이터 로드 실패:", error);
   }
@@ -57,16 +74,23 @@ async function savePatientsData() {
   await writable.close();
 }
 
-// ====== 2. 화면 렌더링 (목록) ======
+// ====== 2. 환자 목록 화면 렌더링 ======
 function renderPatients() {
   patientList.innerHTML = "";
   if(patientsData.length === 0) {
-    patientList.innerHTML = `<div style="text-align:center; grid-column:1/-1; padding:50px;">등록된 환자가 없습니다.</div>`;
+    patientList.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div class="clipboard-icon">📋</div>
+        <h3>등록된 환자가 없습니다.</h3>
+        <p>새 환자를 등록해주세요.</p>
+      </div>`;
     return;
   }
 
   patientsData.forEach(p => {
     const tagsHtml = (p.tags || []).map(t => `<span class="tag-badge">#${t}</span>`).join('');
+    const infoText = [p.gender, p.age ? `${p.age}세` : ''].filter(Boolean).join(' / ');
+    
     const card = document.createElement("div");
     card.className = "patient-card";
     card.innerHTML = `
@@ -74,15 +98,26 @@ function renderPatients() {
         <span class="patient-name">${p.name}</span>
         <span style="color:#64748B; font-size:12px;">${p.chartNumber}</span>
       </div>
+      <div style="font-size: 13px; color: #64748B; margin-bottom: 10px;">${infoText || '정보 없음'}</div>
       <div>${tagsHtml}</div>
     `;
-    // 카드 클릭 시 상세 페이지로 이동
+    
+    // 카드 클릭 시 진짜 상세페이지로 넘어갑니다!
     card.onclick = () => openPatientDetail(p);
     patientList.appendChild(card);
   });
 }
 
-// ====== 3. 환자 등록 로직 ======
+function updateTagDropdown() {
+  const allTags = new Set();
+  patientsData.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
+  tagSelect.innerHTML = `<option value="all">전체 태그 보기</option>`;
+  allTags.forEach(tag => {
+    tagSelect.innerHTML += `<option value="${tag}">#${tag}</option>`;
+  });
+}
+
+// ====== 3. 새 환자 등록 로직 ======
 addPatientBtn.onclick = () => patientModal.classList.add("show");
 document.getElementById("closePatientModalBtn").onclick = () => patientModal.classList.remove("show");
 document.getElementById("cancelPatientBtn").onclick = () => patientModal.classList.remove("show");
@@ -91,34 +126,34 @@ addPatientForm.onsubmit = async (e) => {
   e.preventDefault();
   const name = document.getElementById("patientName").value.trim();
   const chart = document.getElementById("chartNumber").value.trim();
+  const gender = document.getElementById("patientGender").value;
+  const age = document.getElementById("patientAge").value;
   const tags = document.getElementById("patientTags").value.split(',').map(t => t.trim()).filter(t => t);
 
   const newPatient = {
-    id: Date.now().toString(),
-    chartNumber: chart,
-    name: name,
-    tags: tags,
-    records: [] // 임상 사진 기록 배열
+    id: Date.now().toString(), chartNumber: chart, name: name,
+    gender: gender, age: age, tags: tags, records: []
   };
 
   try {
-    // 1. 환자별 실제 폴더 생성
-    const folderName = `[${chart}]_${name}`;
+    const folderName = `[${chart}]_${name}_임상사진`;
     await dirHandle.getDirectoryHandle(folderName, { create: true });
     
-    // 2. DB 업데이트
     patientsData.push(newPatient);
     await savePatientsData();
     
     patientModal.classList.remove("show");
     addPatientForm.reset();
     renderPatients();
+    updateTagDropdown();
+
+    showNotification(`[${name}] 환자 등록 완료!\nPC에 '${folderName}' 폴더가 안전하게 생성되었습니다.`);
   } catch (error) {
-    alert("폴더 생성 에러. 권한을 확인해주세요.");
+    showNotification("폴더 생성 에러. 브라우저 권한을 확인해주세요.");
   }
 };
 
-// ====== 4. 환자 상세 페이지 (임상 사진 뷰) ======
+// ====== 4. 임상 사진 상세 페이지 진입 ======
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none";
   sectionList.style.display = "block";
@@ -137,26 +172,25 @@ function openPatientDetail(patient) {
   renderTimeline();
 }
 
-// ====== 5. 타임라인 및 사진 렌더링 ======
+// ====== 5. 타임라인 및 5분할 사진 로드 로직 ======
 function renderTimeline() {
   const tBar = document.getElementById("timelineBar");
   tBar.innerHTML = "";
   
   if(!activePatient.records || activePatient.records.length === 0) {
-    tBar.innerHTML = "<div style='color:#64748B;'>기록된 증례가 없습니다.</div>";
+    tBar.innerHTML = "<div style='color:#64748B;'>기록된 증례가 없습니다. 새 증례를 추가해주세요.</div>";
     document.getElementById("photoViewerArea").innerHTML = "";
     document.getElementById("currentRecordDate").innerText = "날짜를 선택하세요";
+    document.getElementById("currentRecordMemo").innerText = "등록된 메모가 없습니다.";
     return;
   }
 
-  // 날짜 오름차순 정렬
   activePatient.records.sort((a,b) => new Date(a.date) - new Date(b.date));
 
   activePatient.records.forEach((record, index) => {
     const box = document.createElement("div");
     box.className = "timeline-item";
     
-    // 첫 날짜 기준 경과 시간 계산 (1Y1M 등)
     let label = index === 0 ? "초진" : getElapsedTime(activePatient.records[0].date, record.date);
     
     box.innerHTML = `
@@ -171,31 +205,24 @@ function renderTimeline() {
     tBar.appendChild(box);
   });
 
-  // 기본적으로 최신(마지막) 기록 자동 클릭
-  tBar.lastChild.click();
+  tBar.lastChild.click(); // 최신 기록 자동 선택
 }
 
 function getElapsedTime(startStr, currentStr) {
-  const d1 = new Date(startStr);
-  const d2 = new Date(currentStr);
+  const d1 = new Date(startStr); const d2 = new Date(currentStr);
   let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
   if(months === 0) return "당일";
-  let y = Math.floor(months / 12);
-  let m = months % 12;
+  let y = Math.floor(months / 12); let m = months % 12;
   return (y > 0 ? y + "Y" : "") + (m > 0 ? m + "M" : "");
 }
 
-// ====== 6. 사진 실제 로컬에서 불러오기 ======
 async function loadPhotosForRecord(record) {
   document.getElementById("currentRecordDate").innerText = record.date;
-  document.getElementById("currentRecordMemo").innerText = record.memo || "메모가 없습니다.";
-  
+  document.getElementById("currentRecordMemo").innerText = record.memo || "작성된 메모가 없습니다.";
   const viewer = document.getElementById("photoViewerArea");
-  viewer.innerHTML = "사진을 불러오는 중...";
 
   try {
-    // 로컬 폴더 접근: 환자폴더 -> 날짜폴더
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}`);
+    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
     const dFolder = await pFolder.getDirectoryHandle(record.date);
     
     let html = "";
@@ -205,30 +232,29 @@ async function loadPhotosForRecord(record) {
       const fileName = record.images[i];
       const fileHandle = await dFolder.getFileHandle(fileName);
       const file = await fileHandle.getFile();
-      const objUrl = URL.createObjectURL(file); // 브라우저 메모리에 이미지 띄우기
+      const objUrl = URL.createObjectURL(file); 
       
-      // 5분할 모드면 클래스를 붙여서 위치 지정, 아니면 일반 나열
       const posClass = is5SplitMode && i < 5 ? classes[i] : "";
       html += `<img src="${objUrl}" class="${posClass}" alt="임상사진">`;
     }
-    
     viewer.className = is5SplitMode ? "five-split-layout" : "image-grid";
     viewer.innerHTML = html;
   } catch (err) {
-    viewer.innerHTML = "<div style='color:red;'>사진 파일을 찾을 수 없습니다. (폴더가 이동/삭제되었을 수 있음)</div>";
+    viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진 파일을 불러올 수 없습니다. 로컬 폴더에 원본이 있는지 확인해주세요.</div>";
   }
 }
 
-// 5분할 토글
 document.getElementById("toggle5SplitBtn").onclick = (e) => {
   is5SplitMode = !is5SplitMode;
   e.target.innerText = `5분할 모드 ${is5SplitMode ? 'ON' : 'OFF'}`;
+  e.target.style.background = is5SplitMode ? "var(--btn-green)" : "var(--btn-navy)";
+  
   if(document.querySelector(".timeline-item.active")) {
-    document.querySelector(".timeline-item.active").click(); // 현재 사진 다시 렌더링
+    document.querySelector(".timeline-item.active").click();
   }
 };
 
-// ====== 7. 새 사진 기록 추가 (로컬 파일 복사) ======
+// ====== 6. 새 증례(사진) 기록 추가 ======
 addRecordBtn.onclick = () => {
   document.getElementById("recordDate").value = new Date().toISOString().split('T')[0];
   recordModal.classList.add("show");
@@ -238,26 +264,20 @@ document.getElementById("cancelRecordBtn").onclick = () => recordModal.classList
 
 addRecordForm.onsubmit = async (e) => {
   e.preventDefault();
-  
   const dateStr = document.getElementById("recordDate").value;
   const memoStr = document.getElementById("recordMemo").value;
-  const fileInput = document.getElementById("recordPhotos");
-  const files = fileInput.files;
+  const files = document.getElementById("recordPhotos").files;
 
-  if(files.length === 0) { alert("사진을 1장 이상 첨부해주세요."); return; }
+  if(files.length === 0) { showNotification("사진을 1장 이상 첨부해주세요."); return; }
 
   const submitBtn = document.querySelector("#addRecordForm .btn-success");
-  submitBtn.innerText = "로컬 폴더에 저장 중...";
-  submitBtn.disabled = true;
+  submitBtn.innerText = "로컬 폴더에 저장 중..."; submitBtn.disabled = true;
 
   try {
-    // 1. 환자 폴더 안에 날짜 폴더 생성 (예: 2026-12-05)
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}`);
+    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
     const dFolder = await pFolder.getDirectoryHandle(dateStr, { create: true });
     
     let savedFileNames = [];
-    
-    // 2. 사용자가 선택한 파일을 해당 폴더로 물리적 복사(쓰기)
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const newFileHandle = await dFolder.getFileHandle(file.name, { create: true });
@@ -267,20 +287,17 @@ addRecordForm.onsubmit = async (e) => {
       savedFileNames.push(file.name);
     }
 
-    // 3. JSON DB에 기록 추가
-    const newRecord = { id: Date.now(), date: dateStr, memo: memoStr, images: savedFileNames };
-    activePatient.records.push(newRecord);
+    activePatient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedFileNames });
     await savePatientsData();
 
-    alert("PC 폴더에 사진이 안전하게 저장되었습니다!");
     recordModal.classList.remove("show");
     addRecordForm.reset();
-    renderTimeline(); // 화면 갱신
+    renderTimeline();
+    
+    showNotification("해당 날짜 폴더에 사진이 안전하게 백업 및 저장되었습니다.");
   } catch (error) {
-    alert("파일 저장 중 오류 발생. 권한을 확인해주세요.");
-    console.error(error);
+    showNotification("사진 저장 중 오류가 발생했습니다.");
   } finally {
-    submitBtn.innerText = "로컬 폴더에 사진 저장";
-    submitBtn.disabled = false;
+    submitBtn.innerText = "로컬 폴더에 사진 저장"; submitBtn.disabled = false;
   }
 };
