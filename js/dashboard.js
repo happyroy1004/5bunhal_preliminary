@@ -19,12 +19,9 @@ const imageEditModal = document.getElementById("imageEditModal");
 const editImagePreview = document.getElementById("editImagePreview");
 let currentCropper = null;
 let editTarget = { record: null, index: -1, originalName: "" };
-
-// 💡 편집을 위한 상태 변수
 let baseRotation = 0; 
 let flipY = 1;
 
-// 전역 변수
 let dirHandle = null; let patientsData = []; let activePatient = null; 
 let is5SplitMode = false; let isCompareMode = false; let selectedTagsFilter = new Set(); let selectedRecords = []; 
 
@@ -113,11 +110,11 @@ function getExactInterval(d1Str, d2Str) {
 
 function renderTimeline() {
   const tBar = document.getElementById("timelineBar"); tBar.innerHTML = "";
-  if(!activePatient.records||activePatient.records.length===0){ tBar.innerHTML="<div style='color:#64748B;'>새 증례를 추가해주세요.</div>"; document.getElementById("photoViewerPrimary").innerHTML=""; document.getElementById("recordDatePrimary").innerText="날짜를 선택하세요"; return; }
+  if(!activePatient.records||activePatient.records.length===0){ tBar.innerHTML="<div style='color:#64748B;'>새 기록을 추가해주세요.</div>"; document.getElementById("photoViewerPrimary").innerHTML=""; document.getElementById("recordDatePrimary").innerHTML="날짜를 선택하세요"; return; }
   activePatient.records.sort((a,b)=>new Date(a.date)-new Date(b.date));
   let hasInitNode=false;
   if(activePatient.initialVisitDate && activePatient.records[0].date > activePatient.initialVisitDate){
-    const ib = document.createElement("div"); ib.className="timeline-item"; ib.style.opacity="0.7"; ib.style.cursor="default"; ib.innerHTML=`<div class="timeline-date">${activePatient.initialVisitDate}</div><div class="timeline-label">초진 (사진없음)</div>`; tBar.appendChild(ib); hasInitNode=true;
+    const ib = document.createElement("div"); ib.className="timeline-item"; ib.style.opacity="0.7"; ib.style.cursor="default"; ib.innerHTML=`<div class="timeline-date">${activePatient.initialVisitDate}</div><div class="timeline-label">초진 (기록없음)</div>`; tBar.appendChild(ib); hasInitNode=true;
   }
   activePatient.records.forEach((r, idx) => {
     if(idx>0 || hasInitNode){ const pd=(idx===0)?activePatient.initialVisitDate:activePatient.records[idx-1].date; const cn=document.createElement("div"); cn.className="timeline-connector"; cn.innerHTML=`<span class="interval-text">${getExactInterval(pd, r.date)}</span>`; tBar.appendChild(cn); }
@@ -140,11 +137,25 @@ function updateTimelineUI() {
 }
 
 async function loadPhotosToPanel(record, panelPrefix) {
-  document.getElementById(`recordDate${panelPrefix}`).innerText = record.date;
+  // 💡 진료 기록 전체 삭제 버튼 렌더링
+  document.getElementById(`recordDate${panelPrefix}`).innerHTML = `
+    ${record.date} 
+    <button id="deleteRecordBtn${panelPrefix}" style="font-size:12px; margin-left:15px; padding:4px 8px; border-radius:4px; border:1px solid var(--btn-red); background:white; color:var(--btn-red); cursor:pointer;">🗑️ 이 기록 삭제</button>
+  `;
+  document.getElementById(`deleteRecordBtn${panelPrefix}`).onclick = () => deleteWholeRecord(record);
+
   document.getElementById(`recordMemoTitle${panelPrefix}`).innerText = record.date;
   document.getElementById(`recordMemo${panelPrefix}`).value = record.memo || "";
   
   const viewer = document.getElementById(`photoViewer${panelPrefix}`);
+  
+  // 💡 사진이 아예 없는 기록일 경우 처리
+  if (!record.images || record.images.length === 0) {
+    viewer.className = "image-grid"; 
+    viewer.innerHTML = "<div style='color:#64748B; text-align:center; padding:30px; grid-column:1/-1; background:#F8FAFC; border-radius:8px;'>첨부된 사진이 없습니다. 차트 내용만 존재합니다.</div>";
+    return;
+  }
+
   try {
     const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
     const dFolder = await pFolder.getDirectoryHandle(record.date);
@@ -174,26 +185,36 @@ async function loadPhotosToPanel(record, panelPrefix) {
     viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; 
     viewer.innerHTML = html;
 
-    viewer.querySelectorAll('img').forEach(img => {
-      img.ondblclick = () => { fullscreenImage.src = img.getAttribute('data-url'); fullscreenViewer.classList.add('show'); };
-    });
+    viewer.querySelectorAll('img').forEach(img => { img.ondblclick = () => { fullscreenImage.src = img.getAttribute('data-url'); fullscreenViewer.classList.add('show'); }; });
+    viewer.querySelectorAll('.btn-icon.edit').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); openImageEditModal(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); } });
+    viewer.querySelectorAll('.btn-icon.delete').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); deleteImage(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); } });
 
-    viewer.querySelectorAll('.btn-icon.edit').forEach(btn => {
-      btn.onclick = (e) => { e.stopPropagation(); openImageEditModal(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); }
-    });
-    viewer.querySelectorAll('.btn-icon.delete').forEach(btn => {
-      btn.onclick = (e) => { e.stopPropagation(); deleteImage(record, parseInt(e.target.closest('.image-wrapper').dataset.index), panelPrefix); }
-    });
-
-  } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진을 불러올 수 없습니다.</div>"; }
+  } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진 파일이 손상되었거나 폴더가 이동되었습니다.</div>"; }
 }
+
+// 💡 타임라인 기록 전체 삭제 로직
+async function deleteWholeRecord(recordToDelete) {
+  if(!confirm(`${recordToDelete.date} 진료 기록을 완전히 삭제하시겠습니까?\n(로컬 폴더의 실제 사진 파일은 보존되며, 시스템 목록에서만 지워집니다.)`)) return;
+  
+  activePatient.records = activePatient.records.filter(r => r.id !== recordToDelete.id);
+  await savePatientsData();
+  
+  selectedRecords = selectedRecords.filter(r => r.id !== recordToDelete.id);
+  if (selectedRecords.length === 0 && activePatient.records.length > 0) {
+     selectedRecords = [activePatient.records[activePatient.records.length - 1]];
+  }
+  
+  renderTimeline();
+  showNotification("진료 기록이 성공적으로 삭제되었습니다.");
+}
+
 
 closeViewerBtn.onclick = () => fullscreenViewer.classList.remove('show');
 fullscreenViewer.onclick = (e) => { if(e.target===fullscreenViewer) fullscreenViewer.classList.remove('show'); };
 
 function renderViewPanels() {
   if(selectedRecords.length>0) loadPhotosToPanel(selectedRecords[0], 'Primary');
-  if(isCompareMode){ if(selectedRecords.length>1){ document.getElementById("photoViewerSecondary").innerHTML=""; loadPhotosToPanel(selectedRecords[1], 'Secondary'); }else{ document.getElementById("recordDateSecondary").innerText="두 번째 날짜 선택"; document.getElementById("photoViewerSecondary").innerHTML=""; } }
+  if(isCompareMode){ if(selectedRecords.length>1){ document.getElementById("photoViewerSecondary").innerHTML=""; loadPhotosToPanel(selectedRecords[1], 'Secondary'); }else{ document.getElementById("recordDateSecondary").innerHTML="비교할 날짜 선택"; document.getElementById("photoViewerSecondary").innerHTML=""; } }
 }
 
 compareModeBtn.onclick = () => {
@@ -208,27 +229,41 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => { is5SplitMode=!is5S
 document.getElementById("saveMemoBtnPrimary").onclick = async () => { if(!selectedRecords[0])return; selectedRecords[0].memo=document.getElementById("recordMemoPrimary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 document.getElementById("saveMemoBtnSecondary").onclick = async () => { if(!selectedRecords[1])return; selectedRecords[1].memo=document.getElementById("recordMemoSecondary").value; await savePatientsData(); showNotification("차트 저장됨"); };
 
-// ====== 6. 사진 추가 ======
 addRecordBtn.onclick = () => { document.getElementById("recordDate").value = new Date().toISOString().split('T')[0]; recordModal.classList.add("show"); };
 document.getElementById("closeRecordModalBtn").onclick = () => recordModal.classList.remove("show"); document.getElementById("cancelRecordBtn").onclick = () => recordModal.classList.remove("show");
 document.getElementById("recordPhotos").addEventListener("change", (e) => { const f=e.target.files; if(f.length>0){ let o=f[0].lastModified; for(let i=1;i<f.length;i++){if(f[i].lastModified<o) o=f[i].lastModified;} const d=new Date(o); document.getElementById("recordDate").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; } });
 
 addRecordForm.onsubmit = async (e) => {
-  e.preventDefault(); const dateStr = document.getElementById("recordDate").value; const memoStr = document.getElementById("recordMemo").value; const files = document.getElementById("recordPhotos").files;
-  if(files.length===0){showNotification("사진을 첨부해주세요."); return;} const sb = document.querySelector("#addRecordForm .btn-success"); sb.innerText="저장 중..."; sb.disabled=true;
+  e.preventDefault(); 
+  const dateStr = document.getElementById("recordDate").value; 
+  const memoStr = document.getElementById("recordMemo").value; 
+  const files = document.getElementById("recordPhotos").files;
+
+  const sb = document.querySelector("#addRecordForm .btn-success"); 
+  sb.innerText = "저장 중..."; sb.disabled = true;
+
   try {
-    const pf = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`, {create:true}); const df = await pf.getDirectoryHandle(dateStr, {create:true});
-    let sFiles = [];
-    for(let i=0; i<files.length; i++) {
-      const nf = await df.getFileHandle(files[i].name, {create:true}); const w = await nf.createWritable(); await w.write(files[i]); await w.close();
-      sFiles.push({ original: files[i].name, edited: null });
+    let savedFileNames = [];
+    
+    // 💡 사진이 첨부되었을 때만 폴더를 만들고 파일을 저장함
+    if (files.length > 0) {
+      const pf = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`, {create:true}); 
+      const df = await pf.getDirectoryHandle(dateStr, {create:true});
+      for(let i=0; i<files.length; i++) {
+        const nf = await df.getFileHandle(files[i].name, {create:true}); const w = await nf.createWritable(); await w.write(files[i]); await w.close();
+        savedFileNames.push({ original: files[i].name, edited: null });
+      }
     }
-    if(!activePatient.records) activePatient.records=[]; activePatient.records.push({id:Date.now(), date:dateStr, memo:memoStr, images:sFiles}); await savePatientsData();
-    recordModal.classList.remove("show"); addRecordForm.reset(); renderTimeline(); showNotification("저장 완료.");
-  } catch(err){ showNotification("오류: "+err.message); } finally { sb.innerText="로컬 폴더에 저장"; sb.disabled=false; }
+    
+    if(!activePatient.records) activePatient.records=[]; 
+    activePatient.records.push({id:Date.now(), date:dateStr, memo:memoStr, images:savedFileNames}); 
+    
+    await savePatientsData();
+    recordModal.classList.remove("show"); addRecordForm.reset(); renderTimeline(); 
+    showNotification("진료 기록이 추가되었습니다.");
+  } catch(err){ showNotification("오류: "+err.message); } finally { sb.innerText="기록 저장"; sb.disabled=false; }
 };
 
-// ====== 7. 사진 삭제 ======
 async function deleteImage(record, index, panelPrefix) {
   if(!confirm("이 사진을 삭제하시겠습니까?\n(로컬 폴더의 실제 파일은 보존되며, 목록에서만 지워집니다.)")) return;
   record.images.splice(index, 1);
@@ -237,7 +272,6 @@ async function deleteImage(record, index, panelPrefix) {
   showNotification("사진이 삭제되었습니다.");
 }
 
-// ====== 8. 사진 편집 (회전/상하반전/크롭/미세조정) ======
 document.getElementById("closeEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 document.getElementById("cancelEditImageBtn").onclick = () => imageEditModal.classList.remove("show");
 
@@ -255,45 +289,17 @@ async function openImageEditModal(record, index, panelPrefix) {
     editImagePreview.src = URL.createObjectURL(file);
     imageEditModal.classList.add("show");
 
-    // 초기화
-    baseRotation = 0;
-    flipY = 1;
-    document.getElementById("fineRotateSlider").value = 0;
-    document.getElementById("fineRotateValue").innerText = "0°";
+    baseRotation = 0; flipY = 1; document.getElementById("fineRotateSlider").value = 0; document.getElementById("fineRotateValue").innerText = "0°";
 
     if (currentCropper) currentCropper.destroy();
-    currentCropper = new Cropper(editImagePreview, {
-      aspectRatio: 4 / 3, // 💡 가로4 세로3
-      viewMode: 1,
-      dragMode: 'move',
-      background: false
-    });
+    currentCropper = new Cropper(editImagePreview, { aspectRatio: 4 / 3, viewMode: 1, dragMode: 'move', background: false });
   } catch(e) { showNotification("원본 파일을 찾을 수 없어 편집할 수 없습니다."); }
 }
 
-// 💡 슬라이더와 버튼에 의한 종합 회전 적용 함수
-function updateCropperTransform() {
-  const fineRot = parseInt(document.getElementById("fineRotateSlider").value);
-  currentCropper.rotateTo(baseRotation + fineRot);
-}
-
-// 좌로 90도 회전
-document.getElementById("rotateLeftBtn").onclick = () => { 
-  if(currentCropper) { baseRotation -= 90; updateCropperTransform(); } 
-};
-
-// 💡 상하 반전 추가
-document.getElementById("flipVerticalBtn").onclick = () => { 
-  if(currentCropper) { flipY = flipY === 1 ? -1 : 1; currentCropper.scaleY(flipY); } 
-};
-
-// 💡 미세 회전 슬라이더 동작
-document.getElementById("fineRotateSlider").addEventListener("input", (e) => {
-  if(currentCropper) {
-    document.getElementById("fineRotateValue").innerText = e.target.value + "°";
-    updateCropperTransform();
-  }
-});
+function updateCropperTransform() { const fineRot = parseInt(document.getElementById("fineRotateSlider").value); currentCropper.rotateTo(baseRotation + fineRot); }
+document.getElementById("rotateLeftBtn").onclick = () => { if(currentCropper) { baseRotation -= 90; updateCropperTransform(); } };
+document.getElementById("flipVerticalBtn").onclick = () => { if(currentCropper) { flipY = flipY === 1 ? -1 : 1; currentCropper.scaleY(flipY); } };
+document.getElementById("fineRotateSlider").addEventListener("input", (e) => { if(currentCropper) { document.getElementById("fineRotateValue").innerText = e.target.value + "°"; updateCropperTransform(); } });
 
 document.getElementById("saveEditImageBtn").onclick = async () => {
   if (!currentCropper) return;
@@ -301,33 +307,19 @@ document.getElementById("saveEditImageBtn").onclick = async () => {
 
   try {
     const canvas = currentCropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
-    
     canvas.toBlob(async (blob) => {
       const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
       const dFolder = await pFolder.getDirectoryHandle(editTarget.record.date);
-      
       const editedName = "edited_" + Date.now() + "_" + editTarget.originalName;
       const newFileHandle = await dFolder.getFileHandle(editedName, { create: true });
-      const writable = await newFileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      const writable = await newFileHandle.createWritable(); await writable.write(blob); await writable.close();
 
       let imgData = editTarget.record.images[editTarget.index];
-      if (typeof imgData === 'string') {
-        editTarget.record.images[editTarget.index] = { original: imgData, edited: editedName };
-      } else {
-        imgData.edited = editedName;
-      }
+      if (typeof imgData === 'string') editTarget.record.images[editTarget.index] = { original: imgData, edited: editedName };
+      else imgData.edited = editedName;
       
-      await savePatientsData();
-      imageEditModal.classList.remove("show");
-      renderViewPanels(); 
-      showNotification("크롭/편집본이 고화질로 저장되었습니다.");
-      
-      btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
+      await savePatientsData(); imageEditModal.classList.remove("show"); renderViewPanels(); 
+      showNotification("크롭/편집본이 고화질로 저장되었습니다."); btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
     }, 'image/jpeg', 1.0);
-  } catch(e) {
-    showNotification("저장 중 에러 발생");
-    btn.innerText = "크롭/편집본 저장"; btn.disabled = false;
-  }
+  } catch(e) { showNotification("저장 중 에러 발생"); btn.innerText = "크롭/편집본 저장"; btn.disabled = false; }
 };
