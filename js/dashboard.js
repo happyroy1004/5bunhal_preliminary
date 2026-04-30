@@ -1,4 +1,11 @@
+import { auth } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
 // ====== DOM 요소 설정 ======
+const navUserName = document.getElementById("navUserName");
+const greetingName = document.getElementById("greetingName");
+const logoutBtn = document.getElementById("logoutBtn");
+
 const selectFolderBtn = document.getElementById("selectFolderBtn");
 const workspaceStatus = document.getElementById("workspaceStatus");
 const mainToolbar = document.getElementById("mainToolbar");
@@ -10,17 +17,15 @@ const sectionList = document.getElementById("patientListSection");
 const sectionDetail = document.getElementById("patientDetailSection");
 const backToListBtn = document.getElementById("backToListBtn");
 
-// 환자 등록 모달
+// 모달들
 const patientModal = document.getElementById("addPatientModal");
 const addPatientBtn = document.getElementById("addPatientBtn");
 const addPatientForm = document.getElementById("addPatientForm");
 
-// 증례 기록 모달
 const recordModal = document.getElementById("addRecordModal");
 const addRecordBtn = document.getElementById("addRecordBtn");
 const addRecordForm = document.getElementById("addRecordForm");
 
-// 커스텀 알림 모달 (alert 대체)
 const customAlertModal = document.getElementById("customAlertModal");
 const alertMessage = document.getElementById("alertMessage");
 const closeAlertBtn = document.getElementById("closeAlertBtn");
@@ -31,27 +36,100 @@ let patientsData = [];
 let activePatient = null; 
 let is5SplitMode = false; 
 
-// ====== 알림창(Alert) 커스텀 함수 ======
+// ====== 1. Firebase 인증 확인 (이름 출력 및 로그아웃) ======
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    const displayName = user.displayName || user.email.split('@')[0];
+    navUserName.innerText = displayName;
+    greetingName.innerText = displayName;
+  } else {
+    window.location.href = "index.html"; // 미로그인 시 차단
+  }
+});
+
+logoutBtn.onclick = async () => {
+  try {
+    await signOut(auth);
+    window.location.href = "index.html";
+  } catch (error) {
+    showNotification("로그아웃 실패: " + error.message);
+  }
+};
+
+// ====== 커스텀 알림창 ======
 function showNotification(msg) {
   alertMessage.innerHTML = msg.replace(/\n/g, '<br>');
   customAlertModal.classList.add("show");
 }
 closeAlertBtn.onclick = () => customAlertModal.classList.remove("show");
 
-// ====== 1. 폴더 선택 및 DB 로드 ======
-selectFolderBtn.onclick = async () => {
-  try {
-    dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-    workspaceStatus.innerHTML = `연결된 작업 폴더: <b>${dirHandle.name}</b>`;
-    selectFolderBtn.style.display = "none";
-    mainToolbar.style.opacity = "1";
-    mainToolbar.style.pointerEvents = "auto";
-    
-    await loadPatientsData();
-  } catch (error) {
-    console.error("폴더 선택 취소:", error);
+// ====== 2. 폴더 영구 기억 시스템 (IndexedDB 활용) ======
+// 브라우저 DB에 폴더 핸들을 저장하여 새로고침 시에도 유지합니다.
+function getDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("DentalCaseDB", 1);
+    request.onupgradeneeded = (e) => e.target.result.createObjectStore("handles");
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function saveDirectoryHandle(handle) {
+  const db = await getDB();
+  const tx = db.transaction("handles", "readwrite");
+  tx.objectStore("handles").put(handle, "workspace");
+}
+
+async function loadDirectoryHandle() {
+  const db = await getDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction("handles", "readonly");
+    const req = tx.objectStore("handles").get("workspace");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function verifyPermission(fileHandle) {
+  const options = { mode: 'readwrite' };
+  if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+  if ((await fileHandle.requestPermission(options)) === 'granted') return true;
+  return false;
+}
+
+// 자동 로드 실행
+window.addEventListener('DOMContentLoaded', async () => {
+  const savedHandle = await loadDirectoryHandle();
+  if (savedHandle) {
+    workspaceStatus.innerHTML = `이전에 선택한 <b>'${savedHandle.name}'</b> 폴더를 불러오시겠습니까?`;
+    selectFolderBtn.innerText = "폴더 연결 복구하기";
+    selectFolderBtn.onclick = async () => {
+      if (await verifyPermission(savedHandle)) {
+        dirHandle = savedHandle;
+        finishFolderSetup();
+      }
+    };
+  } else {
+    // 최초 접속 시 일반 버튼 동작
+    selectFolderBtn.onclick = async () => {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+        await saveDirectoryHandle(dirHandle); // DB에 저장
+        finishFolderSetup();
+      } catch (error) {
+        console.error("폴더 선택 취소:", error);
+      }
+    };
   }
-};
+});
+
+async function finishFolderSetup() {
+  workspaceStatus.innerHTML = `연결된 작업 폴더: <b style="color:var(--btn-green);">${dirHandle.name}</b>`;
+  selectFolderBtn.style.display = "none";
+  mainToolbar.style.opacity = "1";
+  mainToolbar.style.pointerEvents = "auto";
+  await loadPatientsData();
+}
 
 async function loadPatientsData() {
   try {
@@ -59,7 +137,6 @@ async function loadPatientsData() {
     const file = await fileHandle.getFile();
     const contents = await file.text();
     patientsData = contents ? JSON.parse(contents) : [];
-    
     renderPatients();
     updateTagDropdown();
   } catch (error) {
@@ -74,16 +151,11 @@ async function savePatientsData() {
   await writable.close();
 }
 
-// ====== 2. 환자 목록 화면 렌더링 ======
+// ====== 3. 환자 목록 및 태그 화면 렌더링 ======
 function renderPatients() {
   patientList.innerHTML = "";
   if(patientsData.length === 0) {
-    patientList.innerHTML = `
-      <div class="empty-state" style="grid-column: 1/-1;">
-        <div class="clipboard-icon">📋</div>
-        <h3>등록된 환자가 없습니다.</h3>
-        <p>새 환자를 등록해주세요.</p>
-      </div>`;
+    patientList.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><h3>등록된 환자가 없습니다.</h3></div>`;
     return;
   }
 
@@ -98,11 +170,9 @@ function renderPatients() {
         <span class="patient-name">${p.name}</span>
         <span style="color:#64748B; font-size:12px;">${p.chartNumber}</span>
       </div>
-      <div style="font-size: 13px; color: #64748B; margin-bottom: 10px;">${infoText || '정보 없음'}</div>
+      <div style="font-size: 13px; color: #64748B; margin-bottom: 10px;">${infoText || '추가 정보 없음'}</div>
       <div>${tagsHtml}</div>
     `;
-    
-    // 카드 클릭 시 진짜 상세페이지로 넘어갑니다!
     card.onclick = () => openPatientDetail(p);
     patientList.appendChild(card);
   });
@@ -117,7 +187,7 @@ function updateTagDropdown() {
   });
 }
 
-// ====== 3. 새 환자 등록 로직 ======
+// ====== 4. 새 환자 등록 ======
 addPatientBtn.onclick = () => patientModal.classList.add("show");
 document.getElementById("closePatientModalBtn").onclick = () => patientModal.classList.remove("show");
 document.getElementById("cancelPatientBtn").onclick = () => patientModal.classList.remove("show");
@@ -147,13 +217,13 @@ addPatientForm.onsubmit = async (e) => {
     renderPatients();
     updateTagDropdown();
 
-    showNotification(`[${name}] 환자 등록 완료!\nPC에 '${folderName}' 폴더가 안전하게 생성되었습니다.`);
+    showNotification(`[${name}] 환자 등록 완료!\nPC에 '${folderName}' 폴더가 생성되었습니다.`);
   } catch (error) {
     showNotification("폴더 생성 에러. 브라우저 권한을 확인해주세요.");
   }
 };
 
-// ====== 4. 임상 사진 상세 페이지 진입 ======
+// ====== 5. 임상 사진 상세 페이지 ======
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none";
   sectionList.style.display = "block";
@@ -172,16 +242,15 @@ function openPatientDetail(patient) {
   renderTimeline();
 }
 
-// ====== 5. 타임라인 및 5분할 사진 로드 로직 ======
 function renderTimeline() {
   const tBar = document.getElementById("timelineBar");
   tBar.innerHTML = "";
   
   if(!activePatient.records || activePatient.records.length === 0) {
-    tBar.innerHTML = "<div style='color:#64748B;'>기록된 증례가 없습니다. 새 증례를 추가해주세요.</div>";
+    tBar.innerHTML = "<div style='color:#64748B;'>새 증례를 추가해주세요.</div>";
     document.getElementById("photoViewerArea").innerHTML = "";
     document.getElementById("currentRecordDate").innerText = "날짜를 선택하세요";
-    document.getElementById("currentRecordMemo").innerText = "등록된 메모가 없습니다.";
+    document.getElementById("currentRecordMemo").innerText = "메모 없음";
     return;
   }
 
@@ -205,7 +274,7 @@ function renderTimeline() {
     tBar.appendChild(box);
   });
 
-  tBar.lastChild.click(); // 최신 기록 자동 선택
+  tBar.lastChild.click(); 
 }
 
 function getElapsedTime(startStr, currentStr) {
@@ -218,11 +287,12 @@ function getElapsedTime(startStr, currentStr) {
 
 async function loadPhotosForRecord(record) {
   document.getElementById("currentRecordDate").innerText = record.date;
-  document.getElementById("currentRecordMemo").innerText = record.memo || "작성된 메모가 없습니다.";
+  document.getElementById("currentRecordMemo").innerText = record.memo || "메모 없음";
   const viewer = document.getElementById("photoViewerArea");
 
   try {
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
+    const folderName = `[${activePatient.chartNumber}]_${activePatient.name}_임상사진`;
+    const pFolder = await dirHandle.getDirectoryHandle(folderName);
     const dFolder = await pFolder.getDirectoryHandle(record.date);
     
     let html = "";
@@ -240,7 +310,7 @@ async function loadPhotosForRecord(record) {
     viewer.className = is5SplitMode ? "five-split-layout" : "image-grid";
     viewer.innerHTML = html;
   } catch (err) {
-    viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진 파일을 불러올 수 없습니다. 로컬 폴더에 원본이 있는지 확인해주세요.</div>";
+    viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진을 불러올 수 없습니다.</div>";
   }
 }
 
@@ -254,7 +324,7 @@ document.getElementById("toggle5SplitBtn").onclick = (e) => {
   }
 };
 
-// ====== 6. 새 증례(사진) 기록 추가 ======
+// ====== 6. 새 증례(사진) 기록 및 에러 방지 저장 로직 ======
 addRecordBtn.onclick = () => {
   document.getElementById("recordDate").value = new Date().toISOString().split('T')[0];
   recordModal.classList.add("show");
@@ -268,13 +338,15 @@ addRecordForm.onsubmit = async (e) => {
   const memoStr = document.getElementById("recordMemo").value;
   const files = document.getElementById("recordPhotos").files;
 
-  if(files.length === 0) { showNotification("사진을 1장 이상 첨부해주세요."); return; }
+  if(files.length === 0) { showNotification("사진을 첨부해주세요."); return; }
 
   const submitBtn = document.querySelector("#addRecordForm .btn-success");
   submitBtn.innerText = "로컬 폴더에 저장 중..."; submitBtn.disabled = true;
 
   try {
-    const pFolder = await dirHandle.getDirectoryHandle(`[${activePatient.chartNumber}]_${activePatient.name}_임상사진`);
+    // 생성 시점의 폴더명 규칙과 완벽히 일치시키기
+    const folderName = `[${activePatient.chartNumber}]_${activePatient.name}_임상사진`;
+    const pFolder = await dirHandle.getDirectoryHandle(folderName, { create: true });
     const dFolder = await pFolder.getDirectoryHandle(dateStr, { create: true });
     
     let savedFileNames = [];
@@ -294,9 +366,10 @@ addRecordForm.onsubmit = async (e) => {
     addRecordForm.reset();
     renderTimeline();
     
-    showNotification("해당 날짜 폴더에 사진이 안전하게 백업 및 저장되었습니다.");
+    showNotification("해당 날짜 폴더에 사진이 성공적으로 저장되었습니다.");
   } catch (error) {
-    showNotification("사진 저장 중 오류가 발생했습니다.");
+    console.error("사진 저장 에러 상세:", error);
+    showNotification("사진 저장 중 오류가 발생했습니다.\n" + error.message);
   } finally {
     submitBtn.innerText = "로컬 폴더에 사진 저장"; submitBtn.disabled = false;
   }
