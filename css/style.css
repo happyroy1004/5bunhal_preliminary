@@ -9,6 +9,30 @@ body { background-color: #3B4B61; color: #333; line-height: 1.5; }
   --text-dark: #2C3E50; --text-gray: #64748B; --border-light: #E2E8F0;
 }
 
+/* ================== 로그인 페이지 복구 ================== */
+.login-page {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--navy-bg);
+}
+.login-container {
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+}
+.login-box {
+  background: var(--card-bg);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.login-header h1 { font-size: 24px; color: var(--btn-navy); text-align: center; margin-bottom: 5px; }
+.login-header p { text-align: center; color: var(--text-gray); font-size: 13px; margin-bottom: 30px; }
+.login-footer { margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-gray); }
+.login-footer a { color: var(--btn-navy); font-weight: 700; text-decoration: none; }
+
 /* 네비게이션 & 기본 컨테이너 */
 .top-nav { background: white; padding: 16px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
 .nav-brand { font-size: 20px; font-weight: 700; color: var(--btn-navy); }
@@ -17,7 +41,7 @@ body { background-color: #3B4B61; color: #333; line-height: 1.5; }
 .dashboard-card { background: var(--card-bg); border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); min-height: 600px; }
 
 /* 버튼 디자인 (취소 버튼 포함) */
-button { outline: none; font-family: 'Noto Sans KR', sans-serif; }
+button { outline: none; font-family: inherit; }
 .btn-primary { background: var(--btn-navy); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .btn-success { background: var(--btn-green); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; }
 .btn-secondary { background: var(--btn-gray); color: #334155; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; transition: 0.2s; }
@@ -26,7 +50,7 @@ button { outline: none; font-family: 'Noto Sans KR', sans-serif; }
 
 /* 대시보드 목록 UI */
 .greeting-title { font-size: 24px; color: var(--text-dark); font-weight: 700; margin-bottom: 25px; }
-.info-banner { background: var(--banner-bg); border: 1px solid var(--banner-border); padding: 18px 25px; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 30px; }
+.info-banner { background: var(--banner-bg); border: 1px solid var(--banner-border); padding: 18px 25px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 .search-input { padding: 10px 15px; border: 1px solid var(--border-light); border-radius: 6px; width: 280px; }
 .custom-select { padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 6px; }
@@ -39,12 +63,11 @@ button { outline: none; font-family: 'Noto Sans KR', sans-serif; }
 .patient-name { font-size: 18px; font-weight: 700; color: var(--text-dark); }
 .tag-badge { display: inline-block; background: #E2E8F0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px; margin-bottom: 5px; }
 
-/* 모달 (X버튼 수정) */
+/* 모달 */
 .modal { display: none !important; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; }
 .modal.show { display: flex !important; }
 .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; }
-/* X 버튼 테두리 제거 및 예쁘게 */
 .close-btn { background: transparent; border: none; font-size: 28px; cursor: pointer; color: var(--text-gray); padding: 0; line-height: 1; }
 .close-btn:hover { color: var(--btn-red); }
 .input-group { margin-bottom: 15px; }
@@ -67,15 +90,7 @@ button { outline: none; font-family: 'Noto Sans KR', sans-serif; }
 .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
 .image-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-light); }
 
-/* 5분할 (Penta) 모드 레이아웃 */
-.five-split-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  gap: 10px;
-  max-width: 800px;
-  margin: 0 auto 30px auto;
-}
+.five-split-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 10px; max-width: 800px; margin: 0 auto 30px auto; }
 .five-split-layout img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; border: 2px solid var(--border-light); }
 .pos-upper { grid-column: 2; grid-row: 1; }
 .pos-right { grid-column: 1; grid-row: 2; }
