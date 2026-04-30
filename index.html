@@ -10,12 +10,24 @@
 <body class="login">
   <div class="login-box">
     <h1>치과 증례 기록 시스템</h1>
+    
     <label>이메일</label>
     <input type="email" id="loginEmail">
     <label>비밀번호</label>
     <input type="password" id="loginPw">
     <button id="loginBtn">로그인</button>
+    
     <p>새 계정이 없나요? <a href="#" id="signUpLink">회원가입</a></p>
+
+    <div id="signupForm" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
+      <h3>새 계정 만들기</h3>
+      <label>가입할 이메일</label>
+      <input type="email" id="signUpEmail">
+      <label>새 비밀번호 (6자리 이상)</label>
+      <input type="password" id="signUpPw">
+      <button id="submitSignUpBtn">가입하기</button>
+    </div>
+
   </div>
 </body>
 </html>
