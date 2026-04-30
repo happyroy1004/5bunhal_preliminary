@@ -80,6 +80,9 @@ export async function classifyImage(file) {
         // 3. AI 모델 예측 실행
         const predictions = await model.predict(tensor);
         const data = await predictions.data(); 
+        
+        console.log("🔍 모델 출력 Shape:", predictions.shape);
+        console.log("🔍 모델 첫 20개 데이터:", (await predictions.data()).slice(0, 20));
 
         // 메모리 해제
         tensor.dispose();
