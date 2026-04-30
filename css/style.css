@@ -1,155 +1,86 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
-/* ==================== 공통 초기화 ==================== */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Noto Sans KR', sans-serif; background-color: #F5F7FA; color: #333; line-height: 1.5; }
-a { text-decoration: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; }
+body { background-color: #3B4B61; color: #333; line-height: 1.5; }
 
-/* ==================== 색상 변수 설정 ==================== */
 :root {
-  --navy-bg: #3B4B61;       /* 대시보드 배경 남색 */
-  --card-bg: #FFFFFF;       /* 카드 배경 하얀색 */
-  --banner-bg: #FCF8E3;     /* 안내 배너 부드러운 노란색 */
-  --banner-border: #FAEBCC; 
-  --btn-green: #5B8C65;     /* 새 환자 등록 초록색 */
-  --btn-navy: #374A6A;      /* 기본 버튼 짙은 남색 */
-  --btn-red: #D9534F;       /* 로그아웃 빨간색 */
-  --text-dark: #2C3E50;     /* 진한 글씨 */
-  --text-gray: #7F8C8D;     /* 연한 글씨 */
-  --border-light: #E2E8F0;  /* 연한 테두리 */
+  --navy-bg: #3B4B61; --card-bg: #FFFFFF; --banner-bg: #FCF8E3; --banner-border: #FAEBCC; 
+  --btn-green: #5B8C65; --btn-navy: #374A6A; --btn-red: #D9534F; --btn-gray: #E2E8F0;
+  --text-dark: #2C3E50; --text-gray: #64748B; --border-light: #E2E8F0;
 }
 
-/* ==================== 로그인 & 회원가입 페이지 ==================== */
-.login-page {
-  background-color: var(--navy-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-}
-.login-container { width: 100%; max-width: 420px; padding: 20px; }
-.login-box {
-  background: var(--card-bg);
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-}
-.login-header h1 { font-size: 24px; color: var(--text-dark); margin-bottom: 5px; text-align: center; }
-.login-header p { text-align: center; color: var(--text-gray); font-size: 14px; margin-bottom: 30px; }
+/* 네비게이션 & 기본 컨테이너 */
+.top-nav { background: white; padding: 16px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.nav-brand { font-size: 20px; font-weight: 700; color: var(--btn-navy); }
+.nav-user { display: flex; gap: 15px; font-size: 14px; color: var(--text-gray); align-items: center;}
+.dashboard-container { padding: 40px 20px; max-width: 1200px; margin: 0 auto; }
+.dashboard-card { background: var(--card-bg); border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); min-height: 600px; }
 
-.input-group { margin-bottom: 20px; }
-.input-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-dark); }
-.input-group input { width: 100%; padding: 12px 14px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 14px; outline: none; transition: 0.2s; }
-.input-group input:focus { border-color: var(--btn-navy); }
-
-.checkbox-group { margin-bottom: 20px; display: flex; align-items: center; font-size: 13px; color: var(--text-gray); }
-.checkbox-group input { margin-right: 8px; }
-
-.btn-primary { width: 100%; padding: 14px; background: var(--btn-navy); color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.2s; }
-.btn-primary:hover { background: #2A3952; }
-
-.login-footer { margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-gray); }
-.login-footer a { color: var(--btn-navy); font-weight: 700; margin-left: 5px; }
-
-/* ==================== 대시보드 레이아웃 ==================== */
-.dashboard-body { background: var(--navy-bg); min-height: 100vh; display: flex; flex-direction: column; }
-
-.top-nav {
-  background: white;
-  padding: 16px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
-.nav-brand { font-size: 20px; font-weight: 700; color: var(--btn-navy); display: flex; align-items: center; gap: 8px; }
-.nav-user { display: flex; align-items: center; gap: 15px; font-size: 14px; color: var(--text-gray); }
-.btn-logout { background: var(--btn-red); color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
-
-.dashboard-container { padding: 40px 20px; max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
-.dashboard-card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-  min-height: 600px;
-}
-
-/* ==================== 대시보드 내부 요소 ==================== */
-.greeting-title { font-size: 24px; color: var(--text-dark); font-weight: 700; margin-bottom: 25px; }
-
-.info-banner {
-  background: var(--banner-bg);
-  border: 1px solid var(--banner-border);
-  padding: 18px 25px;
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-.banner-text { color: #8A6D3B; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-.banner-actions button { background: var(--btn-navy); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-left: 10px; font-size: 13px; }
-
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 50px; }
-.search-input { padding: 10px 15px; border: 1px solid var(--border-light); border-radius: 6px; width: 280px; font-size: 14px; }
-.tag-filter { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-dark); font-weight: 500; }
-.custom-select { padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 14px; outline: none; }
+/* 버튼 디자인 (취소 버튼 포함) */
+button { outline: none; font-family: 'Noto Sans KR', sans-serif; }
+.btn-primary { background: var(--btn-navy); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .btn-success { background: var(--btn-green); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; }
+.btn-secondary { background: var(--btn-gray); color: #334155; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; transition: 0.2s; }
+.btn-secondary:hover { background: #CBD5E1; }
+.btn-logout { background: var(--btn-red); color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 
-.empty-state { text-align: center; padding: 80px 0; color: var(--text-gray); }
-.clipboard-icon { font-size: 48px; margin-bottom: 15px; }
-.empty-state h3 { font-size: 18px; color: var(--text-dark); margin-bottom: 8px; }
-.empty-state p { font-size: 14px; }
+/* 대시보드 목록 UI */
+.greeting-title { font-size: 24px; color: var(--text-dark); font-weight: 700; margin-bottom: 25px; }
+.info-banner { background: var(--banner-bg); border: 1px solid var(--banner-border); padding: 18px 25px; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 30px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.search-input { padding: 10px 15px; border: 1px solid var(--border-light); border-radius: 6px; width: 280px; }
+.custom-select { padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 6px; }
 
-/* ==================== 모달창 (강제 중앙 정렬) ==================== */
-.modal {
-  display: none !important; /* 기본적으로 완벽히 숨김 */
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 9999; /* 화면 최상단으로 끌어올림 */
-  align-items: center;
-  justify-content: center;
-}
-.modal.show {
-  display: flex !important; /* show 클래스가 붙으면 Flex로 띄움 */
-}
-.modal-content {
-  background: white;
-  padding: 30px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 15px 50px rgba(0,0,0,0.3);
-}
-.two-col-group {
-  display: flex; gap: 15px; margin-bottom: 20px;
-}
-.two-col-group .input-group { margin-bottom: 0; flex: 1; }
-
-/* ==================== 환자 카드 디자인 ==================== */
-.patient-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  width: 100%;
-}
-.patient-card {
-  background: white;
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  cursor: pointer;
-  transition: all 0.2s;
-}
+/* 환자 카드 */
+.patient-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.patient-card { background: white; border: 1px solid var(--border-light); border-radius: 10px; padding: 20px; cursor: pointer; transition: 0.2s; }
 .patient-card:hover { border-color: var(--btn-navy); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
 .patient-card-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;}
 .patient-name { font-size: 18px; font-weight: 700; color: var(--text-dark); }
-.patient-chart { font-size: 12px; color: var(--text-gray); }
-.patient-info { font-size: 13px; color: var(--text-gray); margin-bottom: 15px; }
-.tag-badge { 
-  display: inline-block; background: #E2E8F0; color: #334155; 
-  padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px; margin-bottom: 5px; 
+.tag-badge { display: inline-block; background: #E2E8F0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px; margin-bottom: 5px; }
+
+/* 모달 (X버튼 수정) */
+.modal { display: none !important; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; }
+.modal.show { display: flex !important; }
+.modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; }
+/* X 버튼 테두리 제거 및 예쁘게 */
+.close-btn { background: transparent; border: none; font-size: 28px; cursor: pointer; color: var(--text-gray); padding: 0; line-height: 1; }
+.close-btn:hover { color: var(--btn-red); }
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.input-group input, .input-group select { width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 6px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-light); }
+.two-col-group { display: flex; gap: 15px; }
+
+/* ================== 증례 상세 페이지 UI ================== */
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.detail-title { font-size: 28px; font-weight: 700; color: var(--btn-navy); }
+.timeline-bar { display: flex; gap: 15px; overflow-x: auto; padding: 20px 0; border-bottom: 2px solid var(--border-light); margin-bottom: 30px; }
+.timeline-item { min-width: 100px; text-align: center; cursor: pointer; padding: 10px; border-radius: 8px; transition: 0.2s; background: #F8FAFC; border: 1px solid transparent; }
+.timeline-item.active { border-color: var(--btn-navy); background: #EFF6FF; }
+.timeline-date { font-weight: 700; color: var(--text-dark); }
+.timeline-label { font-size: 12px; color: var(--text-gray); }
+
+/* 사진 업로드 및 뷰어 */
+.record-toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+.image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.image-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-light); }
+
+/* 5분할 (Penta) 모드 레이아웃 */
+.five-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 10px;
+  max-width: 800px;
+  margin: 0 auto 30px auto;
 }
+.five-split-layout img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; border: 2px solid var(--border-light); }
+.pos-upper { grid-column: 2; grid-row: 1; }
+.pos-right { grid-column: 1; grid-row: 2; }
+.pos-front { grid-column: 2; grid-row: 2; }
+.pos-left { grid-column: 3; grid-row: 2; }
+.pos-lower { grid-column: 2; grid-row: 3; }
+
+.memo-box { background: #F8FAFC; padding: 20px; border-radius: 8px; border-left: 4px solid var(--btn-navy); margin-top: 20px; }
