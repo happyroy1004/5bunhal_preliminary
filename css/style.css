@@ -79,18 +79,36 @@ button { outline: none; font-family: inherit; }
 .compare-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start; }
 .view-panel { width: 100%; }
 
-/* 💡 크롭 방지: object-fit: contain 적용 및 배경색 지정 */
+/* 💡 크롭 방지 및 오버레이 (삭제/편집 버튼) 레이아웃 */
 .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-.image-grid img { width: 100%; height: 200px; object-fit: contain; background-color: #E2E8F0; border-radius: 8px; border: 1px solid var(--border-light); cursor: zoom-in; }
-
 .five-split-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 5px; width: 100%; margin: 0 auto 20px auto; }
-.five-split-layout img { width: 100%; aspect-ratio: 4/3; object-fit: contain; background-color: #E2E8F0; border-radius: 8px; border: 1px solid var(--border-light); cursor: zoom-in; }
 
+/* 이미지를 감싸는 래퍼 (버튼 띄우기용) */
+.image-wrapper { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid var(--border-light); background-color: #E2E8F0; }
+.image-grid .image-wrapper img { width: 100%; height: 200px; object-fit: contain; display: block; cursor: zoom-in; }
+.five-split-layout .image-wrapper img { width: 100%; aspect-ratio: 4/3; object-fit: contain; display: block; cursor: zoom-in; }
+
+/* 5분할용 위치값 (wrapper에 적용) */
 .pos-upper { grid-column: 2; grid-row: 1; }
 .pos-right { grid-column: 1; grid-row: 2; }
 .pos-front { grid-column: 2; grid-row: 2; }
 .pos-left { grid-column: 3; grid-row: 2; }
 .pos-lower { grid-column: 2; grid-row: 3; }
+
+/* 마우스 오버 시 나타나는 편집/삭제 버튼 바 */
+.image-overlay {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: linear-gradient(rgba(0,0,0,0.6), transparent);
+  padding: 10px; display: flex; justify-content: flex-end; gap: 8px;
+  opacity: 0; transition: opacity 0.2s; z-index: 10;
+}
+.image-wrapper:hover .image-overlay { opacity: 1; }
+.btn-icon { background: rgba(255,255,255,0.9); border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-dark); transition: 0.2s; }
+.btn-icon.delete:hover { background: var(--btn-red); color: white; }
+.btn-icon.edit:hover { background: var(--btn-navy); color: white; }
+
+/* 편집 모달 안의 크로퍼 뷰어 영역 */
+.cropper-container-box { width: 100%; height: 50vh; background: #eee; display: flex; justify-content: center; align-items: center; overflow: hidden; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-light); }
 
 /* 메모장 텍스트에어리어 */
 .memo-textarea { width: 100%; min-height: 100px; padding: 12px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 14px; color: var(--text-dark); resize: vertical; font-family: inherit; margin-bottom: 10px; background: white; transition: 0.2s; }

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>치과 증례 기록 대시보드</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- 💡 [추가됨] 사진 회전 및 크롭을 위한 Cropper.js 라이브러리 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
 </head>
 <body class="dashboard-body">
   
@@ -18,39 +20,24 @@
 
   <main class="dashboard-container">
     <div class="dashboard-card">
-      
-      <!-- [1] 환자 목록 섹션 -->
       <div id="patientListSection">
         <h2 class="greeting-title"><span id="greetingName">원장</span> 님의 증례 목록입니다.</h2>
-        
-        <!-- 💡 작업 폴더 안내 배너 -->
         <div class="info-banner" id="workspaceBanner">
-          <div class="banner-text">
-            <span>📁</span>
-            <span id="workspaceStatus">보안을 위해 PC의 <b>'로컬 작업 폴더'</b>를 선택해야 데이터를 불러올 수 있습니다.</span>
-          </div>
-          <!-- JS에서 버튼 1개 또는 2개를 동적으로 띄워줄 영역 -->
+          <div class="banner-text"><span>📁</span><span id="workspaceStatus">보안을 위해 PC의 <b>'로컬 작업 폴더'</b>를 선택해야 합니다.</span></div>
           <div class="banner-actions"></div>
         </div>
-
         <div class="toolbar" style="opacity: 0.5; pointer-events: none; flex-wrap: wrap; gap: 15px;" id="mainToolbar">
           <input type="text" id="searchPatient" class="search-input" placeholder="🔍 환자명 또는 진료번호 검색..." style="width: 300px;">
           <div class="tag-filter-container" id="tagFilterContainer"></div>
           <button id="addPatientBtn" class="btn-success" style="margin-left: auto;">+ 새 환자 등록</button>
         </div>
-
         <section id="patientList" class="patient-grid">
-          <div class="empty-state" style="grid-column: 1/-1;">
-            <div class="clipboard-icon">🔒</div>
-            <h3>작업 폴더를 먼저 선택해주세요.</h3>
-          </div>
+          <div class="empty-state" style="grid-column: 1/-1;"><div class="clipboard-icon">🔒</div><h3>작업 폴더를 먼저 선택해주세요.</h3></div>
         </section>
       </div>
 
-      <!-- [2] 임상 사진 상세 섹션 -->
       <div id="patientDetailSection" style="display: none;">
         <button id="backToListBtn" class="btn-secondary" style="margin-bottom: 20px;">← 목록으로 돌아가기</button>
-        
         <div class="detail-header">
           <div>
             <div class="detail-title" id="detailPatientName">환자명</div>
@@ -64,10 +51,7 @@
         </div>
 
         <div class="global-memo-box">
-          <div class="memo-header-flex">
-            <h4 style="color: var(--btn-green); margin: 0;">📌 환자 전체 특이사항 (Global Memo)</h4>
-            <button id="saveGlobalMemoBtn" class="btn-success" style="padding: 6px 12px; font-size: 12px;">특이사항 저장</button>
-          </div>
+          <div class="memo-header-flex"><h4 style="color: var(--btn-green); margin: 0;">📌 환자 전체 특이사항</h4><button id="saveGlobalMemoBtn" class="btn-success" style="padding: 6px 12px; font-size: 12px;">특이사항 저장</button></div>
           <textarea id="globalPatientMemo" class="memo-textarea" placeholder="환자의 전신 질환, 전체 치료 계획 등을 기록하세요..."></textarea>
         </div>
 
@@ -84,94 +68,60 @@
           <div class="view-panel" id="primaryViewPanel">
             <h3 id="recordDatePrimary" style="color: var(--btn-navy); margin-bottom: 15px; font-size: 20px;">날짜를 선택하세요</h3>
             <div id="photoViewerPrimary" class="image-grid"></div>
-            
             <div class="record-memo-box compare-left">
-              <div class="memo-header-flex">
-                <h4 style="color: var(--btn-navy); margin: 0;">📝 <span id="recordMemoTitlePrimary">진료일</span> 차트</h4>
-                <button id="saveMemoBtnPrimary" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">차트 저장</button>
-              </div>
+              <div class="memo-header-flex"><h4 style="color: var(--btn-navy); margin: 0;">📝 <span id="recordMemoTitlePrimary">진료일</span> 차트</h4><button id="saveMemoBtnPrimary" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">차트 저장</button></div>
               <textarea id="recordMemoPrimary" class="memo-textarea" placeholder="해당 진료일의 처치 내용을 기록하세요..."></textarea>
             </div>
           </div>
-
           <div class="view-panel" id="secondaryViewPanel" style="display: none;">
             <h3 id="recordDateSecondary" style="color: var(--btn-green); margin-bottom: 15px; font-size: 20px;">비교할 날짜를 선택하세요</h3>
             <div id="photoViewerSecondary" class="image-grid"></div>
-            
             <div class="record-memo-box compare-right">
-              <div class="memo-header-flex">
-                <h4 style="color: var(--btn-green); margin: 0;">📝 <span id="recordMemoTitleSecondary">진료일</span> 차트</h4>
-                <button id="saveMemoBtnSecondary" class="btn-success" style="padding: 6px 12px; font-size: 12px;">차트 저장</button>
-              </div>
+              <div class="memo-header-flex"><h4 style="color: var(--btn-green); margin: 0;">📝 <span id="recordMemoTitleSecondary">진료일</span> 차트</h4><button id="saveMemoBtnSecondary" class="btn-success" style="padding: 6px 12px; font-size: 12px;">차트 저장</button></div>
               <textarea id="recordMemoSecondary" class="memo-textarea" placeholder="해당 진료일의 처치 내용을 기록하세요..."></textarea>
             </div>
           </div>
         </div> 
       </div>
-
     </div>
   </main>
 
-  <!-- 모달창 영역 -->
-  <div id="addPatientModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header"><h3>새 환자 등록</h3><button class="close-btn" id="closePatientModalBtn">&times;</button></div>
-      <form id="addPatientForm">
-        <div class="two-col-group">
-          <div class="input-group"><label>환자명 (필수)</label><input type="text" id="patientName" required></div>
-          <div class="input-group"><label>진료번호 (필수)</label><input type="text" id="chartNumber" required></div>
+  <!-- 각종 모달 -->
+  <div id="addPatientModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>새 환자 등록</h3><button class="close-btn" id="closePatientModalBtn">&times;</button></div><form id="addPatientForm"><div class="two-col-group"><div class="input-group"><label>환자명</label><input type="text" id="patientName" required></div><div class="input-group"><label>진료번호</label><input type="text" id="chartNumber" required></div></div><div class="input-group"><label>초진 날짜</label><input type="date" id="initialVisitDate" required></div><div class="input-group"><label>태그</label><input type="text" id="patientTags" placeholder="예: 신경치료, 크라운"></div><div class="modal-footer"><button type="button" class="btn-secondary" id="cancelPatientBtn">취소</button><button type="submit" class="btn-success">환자 등록 및 폴더 생성</button></div></form></div></div>
+
+  <div id="editPatientModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>환자 정보 수정</h3><button class="close-btn" id="closeEditPatientBtn">&times;</button></div><form id="editPatientForm"><div class="two-col-group"><div class="input-group"><label>환자명</label><input type="text" id="editPatientName" required></div><div class="input-group"><label>진료번호</label><input type="text" id="editChartNumber" disabled style="background:#eee;"></div></div><div class="input-group"><label>초진 날짜</label><input type="date" id="editInitialVisitDate" required></div><div class="input-group"><label>태그</label><input type="text" id="editPatientTags"></div><div class="modal-footer"><button type="button" class="btn-secondary" id="cancelEditPatientBtn">취소</button><button type="submit" class="btn-success">정보 저장</button></div></form></div></div>
+
+  <div id="addRecordModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>새 임상 사진 기록</h3><button class="close-btn" id="closeRecordModalBtn">&times;</button></div><form id="addRecordForm"><div class="input-group"><label>사진 첨부</label><input type="file" id="recordPhotos" accept="image/*" multiple required><p style="font-size: 11px; color: var(--text-gray); margin-top: 4px;">가장 오래된 원본 생성일이 진료 날짜로 자동 설정됩니다.</p></div><div class="input-group"><label>진료 날짜</label><input type="date" id="recordDate" required></div><div class="input-group"><label>간단 메모 (선택사항)</label><input type="text" id="recordMemo"></div><div class="modal-footer"><button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button><button type="submit" class="btn-success">로컬 폴더에 저장</button></div></form></div></div>
+
+  <!-- 💡 [추가됨] 사진 편집 (회전 및 크롭) 모달 -->
+  <div id="imageEditModal" class="modal">
+    <div class="modal-content" style="max-width: 800px; width: 90%;">
+      <div class="modal-header">
+        <h3>✂️ 사진 편집 (원본 보존)</h3>
+        <button class="close-btn" id="closeEditImageBtn">&times;</button>
+      </div>
+      <div class="cropper-container-box">
+        <img id="editImagePreview" src="" style="max-width: 100%; max-height: 100%;">
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 10px;">
+          <button id="rotateLeftBtn" class="btn-secondary">↺ 좌로 90도 회전</button>
+          <button id="rotateRightBtn" class="btn-secondary">↻ 우로 90도 회전</button>
         </div>
-        <div class="input-group"><label>초진 날짜</label><input type="date" id="initialVisitDate" required></div>
-        <div class="input-group"><label>태그 (쉼표로 구분하여 생성)</label><input type="text" id="patientTags" placeholder="예: 신경치료, 크라운"></div>
-        <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelPatientBtn">취소</button><button type="submit" class="btn-success">환자 등록 및 폴더 생성</button></div>
-      </form>
-    </div>
-  </div>
-
-  <div id="editPatientModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header"><h3>환자 정보 수정</h3><button class="close-btn" id="closeEditPatientBtn">&times;</button></div>
-      <form id="editPatientForm">
-        <div class="two-col-group">
-          <div class="input-group"><label>환자명</label><input type="text" id="editPatientName" required></div>
-          <div class="input-group"><label>진료번호</label><input type="text" id="editChartNumber" disabled style="background:#eee;"></div>
+        <div style="display: flex; gap: 10px;">
+          <button id="cancelEditImageBtn" class="btn-secondary">취소</button>
+          <button id="saveEditImageBtn" class="btn-success">크롭/회전본 저장</button>
         </div>
-        <div class="input-group"><label>초진 날짜</label><input type="date" id="editInitialVisitDate" required></div>
-        <div class="input-group"><label>태그 (쉼표로 구분)</label><input type="text" id="editPatientTags"></div>
-        <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelEditPatientBtn">취소</button><button type="submit" class="btn-success">정보 저장</button></div>
-      </form>
+      </div>
     </div>
   </div>
 
-  <div id="addRecordModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header"><h3>새 임상 사진 기록</h3><button class="close-btn" id="closeRecordModalBtn">&times;</button></div>
-      <form id="addRecordForm">
-        <div class="input-group">
-          <label>사진 첨부 (드래그 가능, 다중 선택)</label>
-          <input type="file" id="recordPhotos" accept="image/*" multiple required>
-          <p style="font-size: 11px; color: var(--text-gray); margin-top: 4px;">가장 오래된 원본 생성일이 진료 날짜로 자동 설정됩니다.</p>
-        </div>
-        <div class="input-group"><label>진료 날짜</label><input type="date" id="recordDate" required></div>
-        <div class="input-group"><label>간단 메모 (선택사항)</label><input type="text" id="recordMemo"></div>
-        <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelRecordBtn">취소</button><button type="submit" class="btn-success">로컬 폴더에 저장</button></div>
-      </form>
-    </div>
-  </div>
+  <div id="customAlertModal" class="modal"><div class="modal-content" style="max-width: 400px; text-align: center;"><div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;"><h3 style="color: var(--btn-navy);">알림</h3></div><div id="alertMessage" style="padding: 20px 0; font-size: 15px; color: var(--text-dark); line-height: 1.6;"></div><div class="modal-footer" style="justify-content: center; border-top: none;"><button class="btn-primary" id="closeAlertBtn" style="width: 100%;">확인</button></div></div></div>
 
-  <div id="customAlertModal" class="modal">
-    <div class="modal-content" style="max-width: 400px; text-align: center;">
-      <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;"><h3 style="color: var(--btn-navy);">알림</h3></div>
-      <div id="alertMessage" style="padding: 20px 0; font-size: 15px; color: var(--text-dark); line-height: 1.6;"></div>
-      <div class="modal-footer" style="justify-content: center; border-top: none;"><button class="btn-primary" id="closeAlertBtn" style="width: 100%;">확인</button></div>
-    </div>
-  </div>
+  <div id="fullscreenViewer" class="fullscreen-viewer"><span class="close-viewer-btn" id="closeViewerBtn">&times;</span><img id="fullscreenImage" class="fullscreen-image" src="" alt="확대된 이미지"></div>
 
-  <div id="fullscreenViewer" class="fullscreen-viewer">
-    <span class="close-viewer-btn" id="closeViewerBtn">&times;</span>
-    <img id="fullscreenImage" class="fullscreen-image" src="" alt="확대된 이미지">
-  </div>
-
+  <!-- 💡 Cropper.js 스크립트 로드 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
   <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>
