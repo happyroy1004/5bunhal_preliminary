@@ -6,7 +6,6 @@ const navUserName = document.getElementById("navUserName");
 const greetingName = document.getElementById("greetingName");
 const logoutBtn = document.getElementById("logoutBtn");
 
-const selectFolderBtn = document.getElementById("selectFolderBtn");
 const workspaceStatus = document.getElementById("workspaceStatus");
 const mainToolbar = document.getElementById("mainToolbar");
 const patientList = document.getElementById("patientList");
@@ -38,7 +37,6 @@ const compareModeBtn = document.getElementById("compareModeBtn");
 const viewsContainer = document.getElementById("viewsContainer");
 const secondaryViewPanel = document.getElementById("secondaryViewPanel");
 
-// 💡 확대 뷰어 DOM
 const fullscreenViewer = document.getElementById("fullscreenViewer");
 const fullscreenImage = document.getElementById("fullscreenImage");
 const closeViewerBtn = document.getElementById("closeViewerBtn");
@@ -66,7 +64,7 @@ function showNotification(msg) {
 }
 closeAlertBtn.onclick = () => customAlertModal.classList.remove("show");
 
-// ====== 2. 폴더 영구 기억 (IndexedDB) ======
+// ====== 2. 폴더 영구 기억 및 변경 시스템 ======
 function getDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("DentalCaseDB", 1);
@@ -95,16 +93,34 @@ async function verifyPermission(fileHandle) {
   return false;
 }
 
+// 💡 [수정] 폴더 복구 및 새 폴더 연결 버튼 동적 생성
 window.addEventListener('DOMContentLoaded', async () => {
   const savedHandle = await loadDirectoryHandle();
+  const bannerActions = document.querySelector(".banner-actions");
+
   if (savedHandle) {
     workspaceStatus.innerHTML = `이전에 선택한 <b>'${savedHandle.name}'</b> 폴더를 불러오시겠습니까?`;
-    selectFolderBtn.innerText = "폴더 연결 복구하기";
-    selectFolderBtn.onclick = async () => {
+    
+    bannerActions.innerHTML = `
+      <button id="restoreFolderBtn" class="btn-primary">폴더 연결 복구하기</button>
+      <button id="newFolderBtn" class="btn-secondary" style="border-color: var(--btn-navy); color: var(--btn-navy);">새 폴더 연결하기</button>
+    `;
+    
+    document.getElementById("restoreFolderBtn").onclick = async () => {
       if (await verifyPermission(savedHandle)) { dirHandle = savedHandle; finishFolderSetup(); }
     };
+
+    document.getElementById("newFolderBtn").onclick = async () => {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+        await saveDirectoryHandle(dirHandle); // DB에 새로운 폴더 핸들 덮어쓰기
+        finishFolderSetup();
+      } catch (e) { console.log("폴더 변경 취소됨"); }
+    };
   } else {
-    selectFolderBtn.onclick = async () => {
+    // 최초 접속 시
+    bannerActions.innerHTML = `<button id="selectFolderBtn" class="btn-primary">작업 폴더 선택 (필수)</button>`;
+    document.getElementById("selectFolderBtn").onclick = async () => {
       try {
         dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
         await saveDirectoryHandle(dirHandle); 
@@ -116,7 +132,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function finishFolderSetup() {
   workspaceStatus.innerHTML = `연결된 작업 폴더: <b style="color:var(--btn-green);">${dirHandle.name}</b>`;
-  selectFolderBtn.style.display = "none";
+  document.querySelector(".banner-actions").style.display = "none"; // 버튼 컨테이너 숨김
   mainToolbar.style.opacity = "1"; mainToolbar.style.pointerEvents = "auto";
   await loadPatientsData();
 }
@@ -225,7 +241,7 @@ editPatientForm.onsubmit = async (e) => {
   showNotification("환자 정보가 수정되었습니다.");
 };
 
-// ====== 5. 임상 사진 상세 & 비교 모드 로직 ======
+// ====== 5. 임상 사진 상세 & 비교 모드 ======
 backToListBtn.onclick = () => {
   sectionDetail.style.display = "none"; sectionList.style.display = "block"; activePatient = null;
   selectedRecords = []; isCompareMode = false;
@@ -349,13 +365,11 @@ async function loadPhotosToPanel(record, panelPrefix) {
       const objUrl = URL.createObjectURL(file); 
       const posClass = is5SplitMode ? (i < 5 ? classes[i] : "") : "";
       
-      // 💡 더블클릭 확대 이벤트를 위한 data-url 삽입
       html += `<img src="${objUrl}" data-url="${objUrl}" class="${posClass}" alt="임상사진">`;
     }
     viewer.className = is5SplitMode ? "five-split-layout" : "image-grid"; 
     viewer.innerHTML = html;
 
-    // 💡 방금 생성된 모든 사진에 더블클릭(ondblclick) 이벤트 부착
     viewer.querySelectorAll('img').forEach(img => {
       img.ondblclick = () => {
         fullscreenImage.src = img.getAttribute('data-url');
@@ -366,10 +380,9 @@ async function loadPhotosToPanel(record, panelPrefix) {
   } catch (err) { viewer.innerHTML = "<div style='color:var(--btn-red); grid-column:1/-1;'>사진을 불러올 수 없습니다.</div>"; }
 }
 
-// 💡 확대 뷰어 닫기 이벤트
 closeViewerBtn.onclick = () => fullscreenViewer.classList.remove('show');
 fullscreenViewer.onclick = (e) => {
-  if (e.target === fullscreenViewer) fullscreenViewer.classList.remove('show'); // 배경 클릭 시 닫기
+  if (e.target === fullscreenViewer) fullscreenViewer.classList.remove('show'); 
 };
 
 function renderViewPanels() {
