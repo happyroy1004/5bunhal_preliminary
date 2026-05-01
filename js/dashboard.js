@@ -92,6 +92,7 @@ async function _finishFolderSetup() {
 function _initModules() {
   initAddPatientModal({ getDirHandle, getPatients, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); }, showAlert });
   initEditPatientModal({ getPatient, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); _openPatientDetail(activePatient); }, showAlert });
+  // 💡 5분할 상태를 record-modal로 전달
   initRecordModal({ 
     getDirHandle, 
     getPatient, 
@@ -254,7 +255,7 @@ async function _loadPanel(record, prefix) {
     onDelete: (rec, idx) => _deleteImage(rec, idx, prefix),
     onEdit:   (rec, idx) => openEditor({ record: rec, index: idx, dirHandle, patient: activePatient, showAlert, getPatients }),
     onFullscreen: url => { document.getElementById("fullscreenImage").src = url; document.getElementById("fullscreenViewer").classList.add("show"); },
-    onUpdateRecords: _savePatients
+    onUpdateRecords: _savePatients // 💡 지연 분류 결과를 영구 저장하기 위한 콜백
   });
 }
 
