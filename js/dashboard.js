@@ -1,8 +1,9 @@
+// js/dashboard.js
+
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
 import { saveDirectoryHandle, loadDirectoryHandle, verifyPermission, loadPatients, savePatients } from "./storage.js";
-// 💡 [수정됨] export5SplitImage 모듈 Import 추가!
 import { renderPhotoViewer, export5SplitImage } from "./renderer.js"; 
 import { renderTimeline, updateTimelineUI } from "./timeline.js";
 import { initEditor, openEditor } from "./editor.js";
@@ -91,7 +92,14 @@ async function _finishFolderSetup() {
 function _initModules() {
   initAddPatientModal({ getDirHandle, getPatients, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); }, showAlert });
   initEditPatientModal({ getPatient, savePatients: _savePatients, onSaved: () => { _updateTagDropdown(); _renderPatients(); _openPatientDetail(activePatient); }, showAlert });
-  initRecordModal({ getDirHandle, getPatient, savePatients: _savePatients, onSaved: () => _renderTimeline(), showAlert });
+  initRecordModal({ 
+    getDirHandle, 
+    getPatient, 
+    savePatients: _savePatients, 
+    onSaved: () => _renderTimeline(), 
+    showAlert,
+    getIs5SplitMode: () => is5SplitMode 
+  });
   initEditor({ getDirHandle, getPatient, getPatients, onSaved: () => _renderViewPanels(), showAlert });
 }
 
@@ -217,7 +225,6 @@ function _renderViewPanels() {
 }
 
 async function _loadPanel(record, prefix) {
-  // 💡 [수정됨] 5분할 모드가 켜져있고, 사진이 존재할 때만 '다운로드 버튼' 활성화
   const showDownload = is5SplitMode && record.images && record.images.length > 0;
 
   document.getElementById(`recordDate${prefix}`).innerHTML = `
@@ -237,7 +244,6 @@ async function _loadPanel(record, prefix) {
 
   document.getElementById(`deleteRecordBtn${prefix}`).onclick = () => _deleteRecord(record);
   
-  // 💡 [수정됨] 다운로드 버튼 이벤트 연동!
   document.getElementById(`download5SplitBtn${prefix}`).onclick = () => export5SplitImage(record, dirHandle, activePatient);
 
   document.getElementById(`recordMemoTitle${prefix}`).innerText = record.date;
@@ -248,7 +254,7 @@ async function _loadPanel(record, prefix) {
     onDelete: (rec, idx) => _deleteImage(rec, idx, prefix),
     onEdit:   (rec, idx) => openEditor({ record: rec, index: idx, dirHandle, patient: activePatient, showAlert, getPatients }),
     onFullscreen: url => { document.getElementById("fullscreenImage").src = url; document.getElementById("fullscreenViewer").classList.add("show"); },
-    onUpdateRecords: _savePatients // 💡 이 줄을 맨 마지막에 추가합니다!
+    onUpdateRecords: _savePatients
   });
 }
 
