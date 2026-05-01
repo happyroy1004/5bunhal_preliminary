@@ -5,14 +5,20 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-// 💡 클래스 맵핑
-const INDEX_TO_CLASS_ID = { 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 };
+// 💡 data.yaml의 names: ['Front', 'Left', 'Lower', 'Right', 'Upper'] 순서 반영
+// 0:Front(3), 1:Left(2), 2:Lower(5), 3:Right(4), 4:Upper(1)
+const INDEX_TO_CLASS_ID = { 
+  0: 3, 
+  1: 2, 
+  2: 5, 
+  3: 4, 
+  4: 1 
+};
 
-// 🚨 [매우 중요] Roboflow data.yaml 파일의 'keypoints' 순서를 확인하고 숫자를 맞춰주세요!
-// 예시: 0번째가 midline, 1번째가 molar1(또는 left), 2번째가 molar2(또는 right) 일 경우
-const KP_MID = 0; // midline의 인덱스 번호
-const KP_M1  = 1; // molar1 (또는 left)의 인덱스 번호
-const KP_M2  = 2; // molar2 (또는 right)의 인덱스 번호
+// 💡 kpt_shape 순서 반영 (0:midline, 1:molar1, 2:molar2)
+const KP_MID = 0; 
+const KP_M1  = 1; 
+const KP_M2  = 2; 
 
 let session = null;
 
@@ -110,7 +116,6 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         const real_w = w * (origW / IMG_SIZE);
         const real_h = h * (origH / IMG_SIZE);
 
-        // 🔥 [원장님 라벨링 이름 기반] 점 할당
         let pMid = kps[KP_MID];
         let pM1  = kps[KP_M1];
         let pM2  = kps[KP_M2];
@@ -121,51 +126,30 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         // 1. 상악/정면/하악 로직 (molar1, molar2로 수평 맞추기)
         if (predictedClass === 1 || predictedClass === 5 || predictedClass === 3) {
           if (pM1.conf > 0.1 && pM2.conf > 0.1) {
-            // 무조건 시각적으로 왼쪽에 있는 점을 기준으로 잡음 (180도 뒤집힘 방지)
             let leftMolar  = pM1.x < pM2.x ? pM1 : pM2;
             let rightMolar = pM1.x < pM2.x ? pM2 : pM1;
-
             angle_rad = Math.atan2(rightMolar.y - leftMolar.y, rightMolar.x - leftMolar.x);
 
-            // 상악/하악은 midline으로 회전 방향 결정
             if ((predictedClass === 1 || predictedClass === 5) && pMid.conf > 0.1) {
               let mx = (leftMolar.x + rightMolar.x) / 2;
               let my = (leftMolar.y + rightMolar.y) / 2;
-              
-              // 회전 후 midline의 상대적 Y 위치 계산
               let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
 
-              if (predictedClass === 1) { 
-                // 상악: midline이 위(-Y)에 있어야 함
-                if (rot_y > 0) angle_rad += Math.PI; 
-              } else if (predictedClass === 5) { 
-                // 하악: 거울상 반전 적용 + midline이 아래(+Y)에 있어야 함
-                is_flip_y = true;
-                if (rot_y > 0) angle_rad += Math.PI; 
-              }
+              if (predictedClass === 1) { if (rot_y > 0) angle_rad += Math.PI; } 
+              else if (predictedClass === 5) { is_flip_y = true; if (rot_y > 0) angle_rad += Math.PI; }
             }
           }
         } 
         // 2. 좌측/우측 로직 (midline과 하나의 molar로 수평 맞추기)
         else if (predictedClass === 2 || predictedClass === 4) {
-          // molar1과 molar2 중 살아있는(AI가 찾은) 어금니 하나를 픽업
           let validMolar = (pM1.conf > pM2.conf) ? pM1 : pM2;
-
           if (pMid.conf > 0.1 && validMolar.conf > 0.1) {
-            // 어금니에서 midline을 바라보는 벡터의 각도
             let current_angle = Math.atan2(pMid.y - validMolar.y, pMid.x - validMolar.x); 
-
-            if (predictedClass === 2) { 
-              // 좌측: midline이 오른쪽(0도 방향)을 향해야 함
-              angle_rad = current_angle; 
-            } else if (predictedClass === 4) { 
-              // 우측: midline이 왼쪽(180도 방향)을 향해야 함
-              angle_rad = current_angle - Math.PI;
-            }
+            if (predictedClass === 2) { angle_rad = current_angle; } 
+            else if (predictedClass === 4) { angle_rad = current_angle - Math.PI; }
           }
         }
 
-        // 캔버스 크기 자동 조절 (사진 잘림 방지)
         let new_w = Math.abs(real_w * Math.cos(angle_rad)) + Math.abs(real_h * Math.sin(angle_rad));
         let new_h = Math.abs(real_w * Math.sin(angle_rad)) + Math.abs(real_h * Math.cos(angle_rad));
 
@@ -175,15 +159,13 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         const cropCtx = cropCanvas.getContext('2d');
 
         cropCtx.translate(new_w / 2, new_h / 2);
-        if (is_flip_y) cropCtx.scale(1, -1); // 하악 거울상 반전
+        if (is_flip_y) cropCtx.scale(1, -1); 
         cropCtx.rotate(-angle_rad);
         cropCtx.drawImage(img, -real_cx, -real_cy, origW, origH);
 
         cropCanvas.toBlob(async (blob) => {
           try {
             const croppedFileName = await saveEditedImage(dirHandle, patient, dateStr, file.name, blob);
-            let degree = (angle_rad * 180 / Math.PI).toFixed(1);
-            console.log(`💡 AI 명칭기반 보정! [${CLASS_NAME_KR[predictedClass]}] | 각도: ${degree}도 ${is_flip_y ? '| 상하반전됨' : ''}`);
             resolve({ classId: predictedClass, croppedFileName: croppedFileName });
           } catch (error) {
             resolve({ classId: predictedClass, croppedFileName: null });
