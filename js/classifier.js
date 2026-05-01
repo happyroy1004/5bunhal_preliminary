@@ -5,9 +5,26 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-// 💡 로보플로우에서 학습된 0~4번 클래스가 앱의 1~5번 위치와 어떻게 매칭되는지 설정합니다.
-// (만약 사진이 엉뚱한 곳에 들어간다면 이 순서를 바꿔주시면 됩니다!)
-const INDEX_TO_CLASS_ID = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5 };
+// 🚨 [매우 중요] 여기서부터 원장님의 집중이 필요합니다!
+// 로보플로우에서 다운받은 데이터셋 폴더 안의 'data.yaml' 파일을 메모장으로 열어보세요.
+// 그 안의 'names:' 리스트 순서에 맞춰서 아래 숫자를 수정해야 합니다.
+// (앱 내부 번호: 1=상악, 2=좌측, 3=정면, 4=우측, 5=하악)
+
+// [예시] data.yaml이 names: ['Front', 'Left', 'Lower', 'Right', 'Upper'] 라면:
+// 0번째(Front) -> 3(정면)
+// 1번째(Left) -> 2(좌측)
+// 2번째(Lower) -> 5(하악)
+// 3번째(Right) -> 4(우측)
+// 4번째(Upper) -> 1(상악)
+// 아래 코드를 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 로 수정하세요!
+
+const INDEX_TO_CLASS_ID = { 
+  0: 1, // data.yaml의 0번째 항목이 상악(1)이 맞는지 확인하세요!
+  1: 2, // data.yaml의 1번째 항목이 좌측(2)이 맞는지 확인하세요!
+  2: 3, 
+  3: 4, 
+  4: 5 
+};
 
 let session = null;
 
@@ -23,7 +40,6 @@ async function loadModel() {
   return session;
 }
 
-// 🔥 궁극의 3종 세트: 분류(Classify) + 크롭(Crop) + 틸팅(Tilt)
 export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
   const sess = await loadModel();
   if (!sess) return { classId: Math.floor(Math.random() * 5) + 1, croppedFileName: null };
@@ -32,11 +48,10 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
     const img = new Image();
     img.onload = async () => {
       try {
-        const IMG_SIZE = 640; // YOLOv8 표준 사이즈
+        const IMG_SIZE = 640; 
         const origW = img.naturalWidth;
         const origH = img.naturalHeight;
 
-        // 1. 이미지를 640x640 캔버스에 그리기
         const canvas = document.createElement('canvas');
         canvas.width = IMG_SIZE;
         canvas.height = IMG_SIZE;
@@ -44,29 +59,26 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         ctx.drawImage(img, 0, 0, IMG_SIZE, IMG_SIZE);
         const imgData = ctx.getImageData(0, 0, IMG_SIZE, IMG_SIZE).data;
 
-        // 2. YOLO 전용 데이터 변환 (0~1 사이 값으로 정규화만 함)
         const floatData = new Float32Array(3 * IMG_SIZE * IMG_SIZE);
         for (let i = 0; i < IMG_SIZE * IMG_SIZE; i++) {
-          floatData[i] = imgData[i * 4] / 255.0; // R
-          floatData[IMG_SIZE * IMG_SIZE + i] = imgData[i * 4 + 1] / 255.0; // G
-          floatData[2 * IMG_SIZE * IMG_SIZE + i] = imgData[i * 4 + 2] / 255.0; // B
+          floatData[i] = imgData[i * 4] / 255.0; 
+          floatData[IMG_SIZE * IMG_SIZE + i] = imgData[i * 4 + 1] / 255.0; 
+          floatData[2 * IMG_SIZE * IMG_SIZE + i] = imgData[i * 4 + 2] / 255.0; 
         }
 
         const tensor = new ort.Tensor('float32', floatData, [1, 3, IMG_SIZE, IMG_SIZE]);
         const feeds = {};
         feeds[sess.inputNames[0]] = tensor;
 
-        // 3. AI 추론 실행!
         const results = await sess.run(feeds);
         const output = results[sess.outputNames[0]].data; 
-        const dims = results[sess.outputNames[0]].dims; // [1, 24, 8400] 예상
+        const dims = results[sess.outputNames[0]].dims; 
 
         const num_features = dims[1];
-        const num_anchors = dims[2]; // 보통 8400
+        const num_anchors = dims[2]; 
         const num_classes = 5; 
         const num_keypoints = (num_features - 4 - num_classes) / 3;
 
-        // 4. 8400개의 박스 중 가장 정답률이 높은(Best) 박스 찾기 (유사 NMS 처리)
         let best_prob = 0;
         let best_anchor = -1;
         let best_class = -1;
@@ -85,21 +97,17 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           }
         }
 
-        // AI가 아무것도 못 찾았거나 확신이 30% 미만이면 원본 반환
         if (best_prob < 0.3) {
-          console.warn("AI가 치아를 명확히 찾지 못했습니다.");
           return resolve({ classId: Math.floor(Math.random() * 5) + 1, croppedFileName: null });
         }
 
         const predictedClass = INDEX_TO_CLASS_ID[best_class];
 
-        // 5. Best 박스의 좌표 및 크기 추출
         let cx = output[0 * num_anchors + best_anchor];
         let cy = output[1 * num_anchors + best_anchor];
         let w = output[2 * num_anchors + best_anchor];
         let h = output[3 * num_anchors + best_anchor];
 
-        // 6. 좌표점(Keypoints) 추출
         let kps = [];
         let kp_start = 4 + num_classes;
         for (let k = 0; k < num_keypoints; k++) {
@@ -108,7 +116,6 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           kps.push({ x: kx, y: ky });
         }
 
-        // 원본 사진 크기에 맞게 스케일업
         const scaleX = origW / IMG_SIZE;
         const scaleY = origH / IMG_SIZE;
 
@@ -117,35 +124,35 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         const real_w = w * scaleX;
         const real_h = h * scaleY;
 
-        // 7. 🔥 자동 틸팅(수평 맞추기) 삼각함수 계산
+        // 💡 [수정됨] 자동 틸팅(수평 맞추기) 안전장치 추가!
         let angle_deg = 0;
-        // 💡 0번 점과 1번 점이 양쪽 끝(가로) 기준점이라고 가정합니다.
         if (kps.length >= 2) {
           let pt1 = { x: kps[0].x * scaleX, y: kps[0].y * scaleY };
           let pt2 = { x: kps[1].x * scaleX, y: kps[1].y * scaleY };
           
           let dx = pt2.x - pt1.x;
           let dy = pt2.y - pt1.y;
-          angle_deg = Math.atan2(dy, dx) * (180 / Math.PI);
-          
-          // 각도가 너무 심하게 꺾이면(45도 이상) 오작동으로 간주하고 제한
-          if (angle_deg > 45) angle_deg = 45;
-          if (angle_deg < -45) angle_deg = -45;
+
+          // x축 거리(dx)가 y축 거리(dy)보다 클 때만(가로에 가까울 때만) 계산
+          if (Math.abs(dx) > Math.abs(dy)) {
+            angle_deg = Math.atan2(dy, dx) * (180 / Math.PI);
+            
+            // 각도가 너무 심하게 꺾여 있으면(15도 초과) AI가 점을 잘못 찍은 것으로 보고 0도로 리셋
+            if (angle_deg > 15 || angle_deg < -15) {
+              angle_deg = 0;
+            }
+          }
         }
 
-        // 8. 캔버스를 만들고, 기울기를 반대로 돌린 뒤 크롭 영역 복사
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = real_w;
         cropCanvas.height = real_h;
         const cropCtx = cropCanvas.getContext('2d');
 
-        // 핵심 마법: 캔버스 중심점을 기준으로 반대로(수평으로) 돌려버립니다.
         cropCtx.translate(real_w / 2, real_h / 2);
         cropCtx.rotate(-angle_deg * Math.PI / 180);
-        // 원본 이미지를 박스 중심에 맞춰서 그립니다.
         cropCtx.drawImage(img, -real_cx, -real_cy, origW, origH);
 
-        // 9. 결과물을 고화질 파일로 저장
         cropCanvas.toBlob(async (blob) => {
           try {
             const croppedFileName = await saveEditedImage(dirHandle, patient, dateStr, file.name, blob);
