@@ -1,9 +1,11 @@
+// js/record-modal.js
+
 import { classifyImage } from "./classifier.js";
 import { saveImageFile } from "./storage.js";
 
 /**
  * 진료 기록 추가 모달을 초기화합니다.
- * "기록 저장" 버튼 클릭 시 각 이미지를 분류하고 class_id를 함께 저장합니다.
+ * "기록 저장" 버튼 클릭 시 5분할 모드 여부에 따라 이미지를 분류하고 저장합니다.
  *
  * @param {object} opts
  * @param {Function} opts.getDirHandle   - () => dirHandle
@@ -11,8 +13,9 @@ import { saveImageFile } from "./storage.js";
  * @param {Function} opts.savePatients   - () => Promise<void>
  * @param {Function} opts.onSaved        - 저장 완료 후 콜백 ()=>void
  * @param {Function} opts.showAlert      - (msg) => void
+ * @param {Function} opts.getIs5SplitMode- () => boolean (5분할 모드 상태 반환)
  */
-export function initRecordModal({ getDirHandle, getPatient, savePatients, onSaved, showAlert }) {
+export function initRecordModal({ getDirHandle, getPatient, savePatients, onSaved, showAlert, getIs5SplitMode }) {
   const modal     = document.getElementById("addRecordModal");
   const form      = document.getElementById("addRecordForm");
   const openBtn   = document.getElementById("addRecordBtn");
@@ -50,49 +53,53 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     const saveBtn = form.querySelector(".btn-success");
     saveBtn.innerText = "저장 중..."; saveBtn.disabled = true;
 
+    // 💡 dashboard.js에서 전달받은 안전한 상태값을 읽어옵니다[cite: 17].
+    const is5SplitModeOn = getIs5SplitMode();
+
     try {
       const savedImages = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // 1. 파일 저장
+        // 1. 원본 파일 저장 (공통)
         await saveImageFile(getDirHandle(), getPatient(), dateStr, file);
 
-        // 2. AI 분류 (저장 시점에 실행)
-        const classId = await classifyImage(file);
+        let classId = null;
 
-        savedImages.push({ original: file.name, edited: null, class_id: classId });
+        // 2. 5분할 모드가 ON일 때만 AI 분류 실행!
+        if (is5SplitModeOn) {
+          classId = await classifyImage(file);
+        }
+
+        // 3. 기록에 추가 (크롭 기능 제거됨, original만 저장)
+        savedImages.push({ 
+          original: file.name, 
+          edited: null, 
+          class_id: classId 
+        });
       }
 
+      // 4. 환자 기록 배열 업데이트 (같은 날짜면 병합, 아니면 새로 추가)
       const patient = getPatient();
       if (!patient.records) patient.records = [];
       
-      // 💡 [수정된 핵심 로직] 같은 날짜(dateStr)의 기록이 이미 존재하는지 검사!
       const existingRecord = patient.records.find(r => r.date === dateStr);
-      
       if (existingRecord) {
-        // 이미 같은 날짜의 기록이 있다면 사진을 기존 배열에 병합(Merge)
         existingRecord.images.push(...savedImages);
-        
-        // 메모 내용도 비어있지 않다면 기존 메모 아래에 줄바꿈으로 추가
         if (memoStr.trim() !== "") {
-          if (existingRecord.memo) {
-            existingRecord.memo += "\n" + memoStr;
-          } else {
-            existingRecord.memo = memoStr;
-          }
+          existingRecord.memo = existingRecord.memo ? existingRecord.memo + "\n" + memoStr : memoStr;
         }
       } else {
-        // 같은 날짜의 기록이 없다면 기존처럼 새 노드로 추가
         patient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedImages });
       }
 
+      // 5. DB 저장 및 모달 닫기
       await savePatients();
       _close();
       form.reset();
       onSaved();
-      showAlert("진료 기록이 성공적으로 추가되었습니다.");
+      showAlert(is5SplitModeOn ? "AI가 자동으로 분류하여 저장했습니다." : "진료 기록이 추가되었습니다.");
     } catch (err) {
       showAlert("오류: " + err.message);
     } finally {
