@@ -1,11 +1,11 @@
 // js/record-modal.js
 
-import { classifyAndCropImage } from "./classifier.js";
+import { classifyImage } from "./classifier.js";
 import { saveImageFile } from "./storage.js";
 
 /**
  * 진료 기록 추가 모달을 초기화합니다.
- * "기록 저장" 버튼 클릭 시 5분할 모드 여부에 따라 이미지를 분류/크롭하고 저장합니다.
+ * "기록 저장" 버튼 클릭 시 5분할 모드 여부에 따라 이미지를 분류하고 저장합니다.
  *
  * @param {object} opts
  * @param {Function} opts.getDirHandle   - () => dirHandle
@@ -53,7 +53,7 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     const saveBtn = form.querySelector(".btn-success");
     saveBtn.innerText = "저장 중..."; saveBtn.disabled = true;
 
-    // 💡 화면 UI(DOM) 대신, dashboard에서 전달받은 안전한 상태값을 읽어옵니다.
+    // 💡 dashboard.js에서 전달받은 안전한 상태값을 읽어옵니다[cite: 17].
     const is5SplitModeOn = getIs5SplitMode();
 
     try {
@@ -66,19 +66,16 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
         await saveImageFile(getDirHandle(), getPatient(), dateStr, file);
 
         let classId = null;
-        let croppedFileName = null;
 
-        // 2. 5분할 모드가 ON일 때만 AI 분류 및 자동 크롭 실행!
+        // 2. 5분할 모드가 ON일 때만 AI 분류 실행!
         if (is5SplitModeOn) {
-          const aiResult = await classifyAndCropImage(file, getDirHandle(), getPatient(), dateStr);
-          classId = aiResult.classId;
-          croppedFileName = aiResult.croppedFileName; 
+          classId = await classifyImage(file);
         }
 
-        // 3. 기록에 추가 (크롭된 파일이 있으면 edited 속성에 바로 넣어줍니다)
+        // 3. 기록에 추가 (크롭 기능 제거됨, original만 저장)
         savedImages.push({ 
           original: file.name, 
-          edited: croppedFileName, 
+          edited: null, 
           class_id: classId 
         });
       }
@@ -102,7 +99,7 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
       _close();
       form.reset();
       onSaved();
-      showAlert(is5SplitModeOn ? "AI가 자동으로 분류 및 크롭하여 저장했습니다." : "진료 기록이 추가되었습니다.");
+      showAlert(is5SplitModeOn ? "AI가 자동으로 분류하여 저장했습니다." : "진료 기록이 추가되었습니다.");
     } catch (err) {
       showAlert("오류: " + err.message);
     } finally {
