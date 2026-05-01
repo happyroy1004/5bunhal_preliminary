@@ -1,6 +1,6 @@
 // js/record-modal.js
 
-import { classifyImage } from "./classifier.js";
+import { classifyAndCropImage } from "./classifier.js";
 import { saveImageFile } from "./storage.js";
 
 export function initRecordModal({ getDirHandle, getPatient, savePatients, onSaved, showAlert, getIs5SplitMode }) {
@@ -40,7 +40,6 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
     const saveBtn = form.querySelector(".btn-success");
     saveBtn.innerText = "저장 중..."; saveBtn.disabled = true;
 
-    // 대시보드로부터 현재 5분할 모드가 켜져 있는지 확인!
     const is5SplitModeOn = getIs5SplitMode();
 
     try {
@@ -49,32 +48,30 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // 1. 파일 저장
+        // 1. 원본 파일 저장
         await saveImageFile(getDirHandle(), getPatient(), dateStr, file);
 
-        // 2. 5분할 모드가 켜져 있을 때만 AI 분류 실행 (꺼져있으면 null)
         let classId = null;
+        let croppedFileName = null;
+
+        // 2. 5분할 모드가 켜져 있을 때만 AI 분류+크롭+틸팅 실행
         if (is5SplitModeOn) {
-          classId = await classifyImage(file);
+          const aiResult = await classifyAndCropImage(file, getDirHandle(), getPatient(), dateStr);
+          classId = aiResult.classId;
+          croppedFileName = aiResult.croppedFileName; 
         }
 
-        savedImages.push({ original: file.name, edited: null, class_id: classId });
+        // 3. 기록에 추가 (크롭된 파일이 있으면 edited에 넣기)
+        savedImages.push({ original: file.name, edited: croppedFileName, class_id: classId });
       }
 
       const patient = getPatient();
       if (!patient.records) patient.records = [];
-      
       const existingRecord = patient.records.find(r => r.date === dateStr);
       
       if (existingRecord) {
         existingRecord.images.push(...savedImages);
-        if (memoStr.trim() !== "") {
-          if (existingRecord.memo) {
-            existingRecord.memo += "\n" + memoStr;
-          } else {
-            existingRecord.memo = memoStr;
-          }
-        }
+        if (memoStr.trim() !== "") existingRecord.memo = existingRecord.memo ? existingRecord.memo + "\n" + memoStr : memoStr;
       } else {
         patient.records.push({ id: Date.now(), date: dateStr, memo: memoStr, images: savedImages });
       }
@@ -85,11 +82,10 @@ export function initRecordModal({ getDirHandle, getPatient, savePatients, onSave
       onSaved();
       
       if (is5SplitModeOn) {
-        showAlert("AI 분류가 완료되었으며 진료 기록이 추가되었습니다.");
+        showAlert("AI 분석(위치분류+크롭+수평보정) 완료 후 저장되었습니다!");
       } else {
-        showAlert("진료 기록이 빠르게 추가되었습니다. (나중에 5분할 모드를 켜면 AI가 분류합니다)");
+        showAlert("사진이 업로드되었습니다. (나중에 5분할 모드를 켜면 AI가 분석합니다)");
       }
-      
     } catch (err) {
       showAlert("오류: " + err.message);
     } finally {
