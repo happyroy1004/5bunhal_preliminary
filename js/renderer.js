@@ -1,17 +1,15 @@
 // js/renderer.js
 
-import { CLASS_NAME_KR, CLASS_POSITION_CSS } from "./classifier.js";
+// 💡 1. classifyImage 를 추가로 import 합니다.
+import { CLASS_NAME_KR, CLASS_POSITION_CSS, classifyImage } from "./classifier.js";
 import { getDateFolder } from "./storage.js";
 
 const FIVE_SPLIT_ORDER = [1, 2, 3, 4, 5];
 
-/**
- * 진료 기록의 사진을 패널에 렌더링합니다.
- */
 export async function renderPhotoViewer({
   record, panelPrefix, is5SplitMode,
   dirHandle, activePatient,
-  onDelete, onEdit, onFullscreen,
+  onDelete, onEdit, onFullscreen, onUpdateRecords // 💡 2. onUpdateRecords 매개변수 추가
 }) {
   const viewer = document.getElementById(`photoViewer${panelPrefix}`);
 
@@ -28,7 +26,7 @@ export async function renderPhotoViewer({
   try {
     const dFolder = await getDateFolder(dirHandle, activePatient, record.date);
     if (is5SplitMode) {
-      await _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullscreen);
+      await _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullscreen, onUpdateRecords);
     } else {
       await _renderGrid(viewer, record, dFolder, onDelete, onEdit, onFullscreen);
     }
@@ -41,25 +39,67 @@ export async function renderPhotoViewer({
 }
 
 // ──────────────────────────────────────────
-// 5분할 렌더링 (Drag & Drop 기능 포함)
+// 5분할 렌더링 (AI 지연 분류 & Drag&Drop 포함)
 // ──────────────────────────────────────────
-async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullscreen) {
+async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullscreen, onUpdateRecords) {
   viewer.className = "five-split-layout";
 
-  let hasMissingClass = false;
+  // 💡 분류 안 된 사진이 있는지 확인
+  const needsAI = record.images.some(img => !img.class_id);
+  
+  if (needsAI) {
+    // 분류 대기 중일 때는 화면에 로딩 메시지를 먼저 띄워줍니다.
+    viewer.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--btn-navy);"><b>AI가 사진 위치를 분석 중입니다... ⏳</b></div>`;
+  }
+
+  let needSave = false;
+
+  // 💡 1. 지연 분류 (Lazy Classification): class_id가 없는 사진만 AI 돌리기
+  for (const img of record.images) {
+    if (!img.class_id) {
+      try {
+        const fh = await dFolder.getFileHandle(img.edited || img.original);
+        const file = await fh.getFile();
+        
+        // AI 모델에 파일 던져서 위치 알아내기
+        img.class_id = await classifyImage(file);
+        needSave = true;
+      } catch (e) {
+        console.error("AI 지연 분류 실패:", e);
+      }
+    }
+  }
+
+  // 💡 2. 중복 충돌 방지 (예: AI가 상악이라고 2번 대답한 경우 방지)
   const usedClasses = new Set();
+  const unassigned = [];
+  
   record.images.forEach(img => {
-    if (img.class_id) usedClasses.add(img.class_id);
-    else hasMissingClass = true;
+    // 이미 자리가 차지된 class_id라면 unassigned(미배정)로 뺍니다.
+    if (img.class_id && !usedClasses.has(img.class_id)) {
+      usedClasses.add(img.class_id);
+    } else {
+      unassigned.push(img);
+    }
   });
 
-  if (hasMissingClass) {
+  // 미배정된 사진들을 남아있는 빈 슬롯에 욱여넣습니다.
+  if (unassigned.length > 0) {
     let availClasses = FIVE_SPLIT_ORDER.filter(c => !usedClasses.has(c));
-    record.images.forEach(img => {
-      if (!img.class_id && availClasses.length > 0) img.class_id = availClasses.shift();
+    unassigned.forEach(img => {
+      if (availClasses.length > 0) {
+        img.class_id = availClasses.shift();
+        needSave = true;
+      }
     });
   }
 
+  // 💡 3. 변경 사항이 생겼다면 데이터베이스(json)에 영구 저장!
+  if (needSave && typeof onUpdateRecords === 'function') {
+    await onUpdateRecords();
+  }
+
+  // --- 여기서부터는 기존의 정상적인 HTML 그리기 코드 ---
   let html = "";
   for (const classId of FIVE_SPLIT_ORDER) {
     const posClass = CLASS_POSITION_CSS[classId];
@@ -67,7 +107,6 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
     const imgData  = record.images.find(img => img.class_id === classId);
 
     if (!imgData) {
-      // 💡 [Drag & Drop 대응] 사진이 없는 슬롯도 드래그 가능하게 설정
       html += `
         <div class="image-wrapper ${posClass}" data-class-id="${classId}" draggable="true"
              style="display:flex;align-items:center;justify-content:center;
@@ -83,7 +122,6 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
     try {
       const fh  = await dFolder.getFileHandle(imgData.edited || imgData.original);
       const url = URL.createObjectURL(await fh.getFile());
-      // 💡 [Drag & Drop 대응] draggable 속성 및 data-class-id 추가
       html += `
         <div class="image-wrapper ${posClass}" data-index="${index}" data-class-id="${classId}" draggable="true">
           <div class="image-overlay">
@@ -109,7 +147,7 @@ async function _render5Split(viewer, record, dFolder, onDelete, onEdit, onFullsc
 
   viewer.innerHTML = html;
   _bindEvents(viewer, record, onDelete, onEdit, onFullscreen);
-  _bindDragAndDrop(viewer, record); // 💡 Drag & Drop 이벤트 바인딩 호출
+  _bindDragAndDrop(viewer, record, onUpdateRecords); 
 }
 
 // ──────────────────────────────────────────
@@ -157,9 +195,9 @@ function _bindEvents(viewer, record, onDelete, onEdit, onFullscreen) {
 }
 
 // ──────────────────────────────────────────
-// 💡 Drag & Drop 이벤트 바인딩 함수
+// Drag & Drop 이벤트 바인딩 (위치 변경 시 자동 저장 포함)
 // ──────────────────────────────────────────
-function _bindDragAndDrop(viewer, record) {
+function _bindDragAndDrop(viewer, record, onUpdateRecords) {
   let draggedEl = null;
   const wrappers = viewer.querySelectorAll('.image-wrapper');
   
@@ -185,24 +223,20 @@ function _bindDragAndDrop(viewer, record) {
       this.style.border = '';
     });
 
-    wrapper.addEventListener('drop', function(e) {
+    wrapper.addEventListener('drop', async function(e) {
       e.stopPropagation();
       this.style.border = '';
       
       if (draggedEl !== this) {
-        // 교체될 슬롯의 class_id 추출
         const draggedClassId = parseInt(draggedEl.getAttribute('data-class-id'));
         const targetClassId = parseInt(this.getAttribute('data-class-id'));
 
-        // 데이터베이스(record.images) 내의 객체 찾기
         const draggedImg = record.images.find(img => img.class_id === draggedClassId);
         const targetImg = record.images.find(img => img.class_id === targetClassId);
 
-        // class_id 스왑
         if (draggedImg) draggedImg.class_id = targetClassId;
         if (targetImg) targetImg.class_id = draggedClassId;
 
-        // UI 즉시 반영을 위한 CSS 클래스 교체
         const draggedPosClass = CLASS_POSITION_CSS[draggedClassId];
         const targetPosClass = CLASS_POSITION_CSS[targetClassId];
         
@@ -213,6 +247,9 @@ function _bindDragAndDrop(viewer, record) {
         this.classList.remove(targetPosClass);
         this.classList.add(draggedPosClass);
         this.setAttribute('data-class-id', draggedClassId);
+
+        // 사용자가 드래그로 순서를 바꾼 것도 즉시 DB에 반영합니다.
+        if (typeof onUpdateRecords === 'function') await onUpdateRecords();
       }
       return false;
     });
@@ -225,7 +262,7 @@ function _bindDragAndDrop(viewer, record) {
 }
 
 // ──────────────────────────────────────────
-// 5분할 고화질 다운로드 (투명 배경, 십자형)
+// 5분할 고화질 다운로드
 // ──────────────────────────────────────────
 export async function export5SplitImage(record, dirHandle, activePatient) {
   if (!record.images || record.images.length === 0) {
@@ -239,7 +276,6 @@ export async function export5SplitImage(record, dirHandle, activePatient) {
   const dFolder = await getDateFolder(dirHandle, activePatient, record.date);
   const loadedImages = {};
 
-  // 1. 고해상도 이미지 로드
   for (const classId of FIVE_SPLIT_ORDER) {
     const imgData = byClass[classId];
     if (imgData) {
@@ -259,7 +295,6 @@ export async function export5SplitImage(record, dirHandle, activePatient) {
     return;
   }
 
-  // 2. 스케일링 비율 및 캔버스 크기 계산 (정면 3번 사진 기준)
   let baseW = 1200, baseH = 900;
   if (loadedImages[3]) {
     baseW = loadedImages[3].naturalWidth;
@@ -270,7 +305,7 @@ export async function export5SplitImage(record, dirHandle, activePatient) {
     baseH = firstImg.naturalHeight;
   }
 
-  const gap = 30; // 사진 간의 간격 (약 2mm)
+  const gap = 30; 
   const dims = {};
 
   for (const classId of FIVE_SPLIT_ORDER) {
@@ -280,41 +315,33 @@ export async function export5SplitImage(record, dirHandle, activePatient) {
     const h = img.naturalHeight;
 
     if (classId === 1 || classId === 5) {
-      // 상악/하악: 세로선 (너비를 중앙 사진과 동일하게 맞춤)
       const scale = baseW / w;
       dims[classId] = { w: baseW, h: h * scale };
     } else if (classId === 2 || classId === 4) {
-      // 좌측/우측: 가로선 (높이를 중앙 사진과 동일하게 맞춤)
       const scale = baseH / h;
       dims[classId] = { w: w * scale, h: baseH };
     } else {
-      dims[classId] = { w: baseW, h: baseH }; // 정면
+      dims[classId] = { w: baseW, h: baseH }; 
     }
   }
 
-  // 각 축의 사이즈 추출
   const h1 = dims[1] ? dims[1].h : 0;
   const h3 = dims[3] ? dims[3].h : baseH;
   const h5 = dims[5] ? dims[5].h : 0;
-  
   const w2 = dims[2] ? dims[2].w : 0;
   const w3 = dims[3] ? dims[3].w : baseW;
   const w4 = dims[4] ? dims[4].w : 0;
 
-  // 전체 캔버스 십자 사이즈 계산
   const canvasWidth = (w2 > 0 ? w2 + gap : 0) + w3 + (w4 > 0 ? gap + w4 : 0);
   const canvasHeight = (h1 > 0 ? h1 + gap : 0) + h3 + (h5 > 0 ? gap + h5 : 0);
 
-  // X, Y 좌표 세팅
   const x2 = 0;
   const xCenter = w2 > 0 ? w2 + gap : 0;
   const x4 = xCenter + w3 + gap;
-
   const y1 = 0;
   const yCenter = h1 > 0 ? h1 + gap : 0;
   const y5 = yCenter + h3 + gap;
 
-  // 3. 캔버스에 그리기 (배경색 미지정 시 투명(Transparent) 자동 유지됨)
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
@@ -326,14 +353,12 @@ export async function export5SplitImage(record, dirHandle, activePatient) {
     }
   };
 
-  // 배치 (CLASS_POSITION_CSS에 맞춰 그리기)
-  draw(1, xCenter, y1);      // 상악
-  draw(2, x2, yCenter);      // 환자 우측 (화면 좌측)
-  draw(3, xCenter, yCenter); // 정면
-  draw(4, x4, yCenter);      // 환자 좌측 (화면 우측)
-  draw(5, xCenter, y5);      // 하악
+  draw(1, xCenter, y1);      
+  draw(2, x2, yCenter);      
+  draw(3, xCenter, yCenter); 
+  draw(4, x4, yCenter);      
+  draw(5, xCenter, y5);      
 
-  // 4. 무손실 PNG 추출 및 다운로드 트리거
   const dataUrl = canvas.toDataURL("image/png", 1.0);
   const a = document.createElement("a");
   a.href = dataUrl;

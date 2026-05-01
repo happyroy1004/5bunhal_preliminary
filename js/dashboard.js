@@ -258,6 +258,7 @@ async function _loadPanel(record, prefix) {
     onDelete: (rec, idx) => _deleteImage(rec, idx, prefix),
     onEdit:   (rec, idx) => openEditor({ record: rec, index: idx, dirHandle, patient: activePatient, showAlert, getPatients }),
     onFullscreen: url => { document.getElementById("fullscreenImage").src = url; document.getElementById("fullscreenViewer").classList.add("show"); },
+    onUpdateRecords: _savePatients // 💡 이 줄을 맨 마지막에 추가합니다!
   });
 }
 
