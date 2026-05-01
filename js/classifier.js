@@ -5,8 +5,14 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-// 💡 완벽한 클래스 맵핑
+// 💡 클래스 맵핑
 const INDEX_TO_CLASS_ID = { 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 };
+
+// 🚨 [매우 중요] Roboflow data.yaml 파일의 'keypoints' 순서를 확인하고 숫자를 맞춰주세요!
+// 예시: 0번째가 midline, 1번째가 molar1(또는 left), 2번째가 molar2(또는 right) 일 경우
+const KP_MID = 0; // midline의 인덱스 번호
+const KP_M1  = 1; // molar1 (또는 left)의 인덱스 번호
+const KP_M2  = 2; // molar2 (또는 right)의 인덱스 번호
 
 let session = null;
 
@@ -96,84 +102,88 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           let kx = output[(kp_start + k * 3) * num_anchors + best_anchor];
           let ky = output[(kp_start + k * 3 + 1) * num_anchors + best_anchor];
           let kconf = output[(kp_start + k * 3 + 2) * num_anchors + best_anchor]; 
-          kps.push({ x: kx, y: ky, conf: kconf });
+          kps.push({ x: kx * (origW / IMG_SIZE), y: ky * (origH / IMG_SIZE), conf: kconf, idx: k });
         }
 
-        const scaleX = origW / IMG_SIZE;
-        const scaleY = origH / IMG_SIZE;
-        const real_cx = cx * scaleX;
-        const real_cy = cy * scaleY;
-        const real_w = w * scaleX;
-        const real_h = h * scaleY;
+        const real_cx = cx * (origW / IMG_SIZE);
+        const real_cy = cy * (origH / IMG_SIZE);
+        const real_w = w * (origW / IMG_SIZE);
+        const real_h = h * (origH / IMG_SIZE);
 
-        let pL = kps[0];
-        let pM = kps[1]; 
-        let pR = kps[2];
+        // 🔥 [원장님 라벨링 이름 기반] 점 할당
+        let pMid = kps[KP_MID];
+        let pM1  = kps[KP_M1];
+        let pM2  = kps[KP_M2];
+
         let angle_rad = 0;
+        let is_flip_y = false; 
 
+        // 1. 상악/정면/하악 로직 (molar1, molar2로 수평 맞추기)
         if (predictedClass === 1 || predictedClass === 5 || predictedClass === 3) {
-          if (pL && pR && pL.conf > 0.1 && pR.conf > 0.1) {
-            let dx = (pR.x - pL.x) * scaleX;
-            let dy = (pR.y - pL.y) * scaleY;
-            angle_rad = Math.atan2(dy, dx);
-          }
+          if (pM1.conf > 0.1 && pM2.conf > 0.1) {
+            // 무조건 시각적으로 왼쪽에 있는 점을 기준으로 잡음 (180도 뒤집힘 방지)
+            let leftMolar  = pM1.x < pM2.x ? pM1 : pM2;
+            let rightMolar = pM1.x < pM2.x ? pM2 : pM1;
 
-          if ((predictedClass === 1 || predictedClass === 5) && pM && pM.conf > 0.1 && pL && pR) {
-            let mx = (pL.x + pR.x) / 2 * scaleX;
-            let my = (pL.y + pR.y) / 2 * scaleY;
-            let mx_mid = pM.x * scaleX;
-            let my_mid = pM.y * scaleY;
+            angle_rad = Math.atan2(rightMolar.y - leftMolar.y, rightMolar.x - leftMolar.x);
 
-            let vec_x = mx_mid - mx;
-            let vec_y = my_mid - my;
-            let rotated_y = vec_x * Math.sin(-angle_rad) + vec_y * Math.cos(-angle_rad);
+            // 상악/하악은 midline으로 회전 방향 결정
+            if ((predictedClass === 1 || predictedClass === 5) && pMid.conf > 0.1) {
+              let mx = (leftMolar.x + rightMolar.x) / 2;
+              let my = (leftMolar.y + rightMolar.y) / 2;
+              
+              // 회전 후 midline의 상대적 Y 위치 계산
+              let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
 
-            if (predictedClass === 1) { 
-              if (rotated_y > 0) angle_rad += Math.PI; 
-            } else if (predictedClass === 5) { 
-              if (rotated_y < 0) angle_rad += Math.PI; 
-            }
-          }
-        } 
-        else if (predictedClass === 2 || predictedClass === 4) {
-          if (pM && pM.conf > 0.1) {
-            let pOther = (pL && pR) ? (pL.conf > pR.conf ? pL : pR) : (pL || pR);
-
-            if (pOther && pOther.conf > 0.1) {
-              let dx = (pM.x - pOther.x) * scaleX;
-              let dy = (pM.y - pOther.y) * scaleY;
-              let current_angle = Math.atan2(dy, dx); 
-
-              if (predictedClass === 2) {
-                angle_rad = current_angle; 
-              } else if (predictedClass === 4) {
-                angle_rad = current_angle - Math.PI;
+              if (predictedClass === 1) { 
+                // 상악: midline이 위(-Y)에 있어야 함
+                if (rot_y > 0) angle_rad += Math.PI; 
+              } else if (predictedClass === 5) { 
+                // 하악: 거울상 반전 적용 + midline이 아래(+Y)에 있어야 함
+                is_flip_y = true;
+                if (rot_y > 0) angle_rad += Math.PI; 
               }
             }
           }
+        } 
+        // 2. 좌측/우측 로직 (midline과 하나의 molar로 수평 맞추기)
+        else if (predictedClass === 2 || predictedClass === 4) {
+          // molar1과 molar2 중 살아있는(AI가 찾은) 어금니 하나를 픽업
+          let validMolar = (pM1.conf > pM2.conf) ? pM1 : pM2;
+
+          if (pMid.conf > 0.1 && validMolar.conf > 0.1) {
+            // 어금니에서 midline을 바라보는 벡터의 각도
+            let current_angle = Math.atan2(pMid.y - validMolar.y, pMid.x - validMolar.x); 
+
+            if (predictedClass === 2) { 
+              // 좌측: midline이 오른쪽(0도 방향)을 향해야 함
+              angle_rad = current_angle; 
+            } else if (predictedClass === 4) { 
+              // 우측: midline이 왼쪽(180도 방향)을 향해야 함
+              angle_rad = current_angle - Math.PI;
+            }
+          }
         }
+
+        // 캔버스 크기 자동 조절 (사진 잘림 방지)
+        let new_w = Math.abs(real_w * Math.cos(angle_rad)) + Math.abs(real_h * Math.sin(angle_rad));
+        let new_h = Math.abs(real_w * Math.sin(angle_rad)) + Math.abs(real_h * Math.cos(angle_rad));
 
         const cropCanvas = document.createElement('canvas');
-        cropCanvas.width = real_w;
-        cropCanvas.height = real_h;
+        cropCanvas.width = new_w;
+        cropCanvas.height = new_h;
         const cropCtx = cropCanvas.getContext('2d');
 
-        cropCtx.translate(real_w / 2, real_h / 2);
+        cropCtx.translate(new_w / 2, new_h / 2);
+        if (is_flip_y) cropCtx.scale(1, -1); // 하악 거울상 반전
         cropCtx.rotate(-angle_rad);
-
-        // ✨ [핵심 추가] 하악(5)일 경우, 회전 후 거울상(좌우) 반전 적용!
-        if (predictedClass === 5) {
-          // X축(가로) 스케일을 -1로 만들어서 거울처럼 좌우를 뒤집습니다.
-          cropCtx.scale(-1, 1); 
-        }
-
         cropCtx.drawImage(img, -real_cx, -real_cy, origW, origH);
 
         cropCanvas.toBlob(async (blob) => {
           try {
             const croppedFileName = await saveEditedImage(dirHandle, patient, dateStr, file.name, blob);
             let degree = (angle_rad * 180 / Math.PI).toFixed(1);
-            console.log(`💡 AI 크롭/틸팅 완료! [${CLASS_NAME_KR[predictedClass]}] | 회전각: ${degree}도 ${predictedClass === 5 ? '| 좌우거울반전 적용' : ''}`);
+            console.log(`💡 AI 명칭기반 보정! [${CLASS_NAME_KR[predictedClass]}] | 각도: ${degree}도 ${is_flip_y ? '| 상하반전됨' : ''}`);
             resolve({ classId: predictedClass, croppedFileName: croppedFileName });
           } catch (error) {
             resolve({ classId: predictedClass, croppedFileName: null });
@@ -181,7 +191,7 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         }, "image/jpeg", 1.0);
 
       } catch (err) {
-        console.error("❌ YOLO-Pose 파싱 에러:", err);
+        console.error("❌ YOLO-Pose 에러:", err);
         resolve({ classId: Math.floor(Math.random() * 5) + 1, croppedFileName: null }); 
       }
     };
