@@ -5,25 +5,14 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-// 🚨 [매우 중요] 여기서부터 원장님의 집중이 필요합니다!
-// 로보플로우에서 다운받은 데이터셋 폴더 안의 'data.yaml' 파일을 메모장으로 열어보세요.
-// 그 안의 'names:' 리스트 순서에 맞춰서 아래 숫자를 수정해야 합니다.
-// (앱 내부 번호: 1=상악, 2=좌측, 3=정면, 4=우측, 5=하악)
-
-// [예시] data.yaml이 names: ['Front', 'Left', 'Lower', 'Right', 'Upper'] 라면:
-// 0번째(Front) -> 3(정면)
-// 1번째(Left) -> 2(좌측)
-// 2번째(Lower) -> 5(하악)
-// 3번째(Right) -> 4(우측)
-// 4번째(Upper) -> 1(상악)
-// 아래 코드를 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 로 수정하세요!
-
+// 💡 원장님이 찾아내신 완벽한 패턴을 적용했습니다!
+// (0: Front/정면, 1: Left/좌측, 2: Lower/하악, 3: Right/우측, 4: Upper/상악)
 const INDEX_TO_CLASS_ID = { 
-  0: 1, // data.yaml의 0번째 항목이 상악(1)이 맞는지 확인하세요!
-  1: 2, // data.yaml의 1번째 항목이 좌측(2)이 맞는지 확인하세요!
-  2: 3, 
-  3: 4, 
-  4: 5 
+  0: 3, // 원래 상악 자리(0) -> '정면'으로 수정
+  1: 2, // 좌측은 그대로
+  2: 5, // 원래 정면 자리(2) -> '하악'으로 수정
+  3: 4, // 우측은 그대로
+  4: 1  // 원래 하악 자리(4) -> '상악'으로 수정
 };
 
 let session = null;
@@ -124,7 +113,7 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         const real_w = w * scaleX;
         const real_h = h * scaleY;
 
-        // 💡 [수정됨] 자동 틸팅(수평 맞추기) 안전장치 추가!
+        // 자동 틸팅(수평 맞추기) 안전장치
         let angle_deg = 0;
         if (kps.length >= 2) {
           let pt1 = { x: kps[0].x * scaleX, y: kps[0].y * scaleY };
@@ -133,11 +122,9 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           let dx = pt2.x - pt1.x;
           let dy = pt2.y - pt1.y;
 
-          // x축 거리(dx)가 y축 거리(dy)보다 클 때만(가로에 가까울 때만) 계산
           if (Math.abs(dx) > Math.abs(dy)) {
             angle_deg = Math.atan2(dy, dx) * (180 / Math.PI);
             
-            // 각도가 너무 심하게 꺾여 있으면(15도 초과) AI가 점을 잘못 찍은 것으로 보고 0도로 리셋
             if (angle_deg > 15 || angle_deg < -15) {
               angle_deg = 0;
             }
@@ -151,12 +138,18 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
 
         cropCtx.translate(real_w / 2, real_h / 2);
         cropCtx.rotate(-angle_deg * Math.PI / 180);
+
+        // ✨ [핵심 추가] AI가 찾은 부위가 '하악(5)'일 경우 상하 반전(Flip Vertical)을 시켜줍니다!
+        if (predictedClass === 5) {
+          cropCtx.scale(1, -1); 
+        }
+
         cropCtx.drawImage(img, -real_cx, -real_cy, origW, origH);
 
         cropCanvas.toBlob(async (blob) => {
           try {
             const croppedFileName = await saveEditedImage(dirHandle, patient, dateStr, file.name, blob);
-            console.log(`💡 AI 크롭/틸팅 완료! [${CLASS_NAME_KR[predictedClass]}] | 각도: ${angle_deg.toFixed(1)}도 보정`);
+            console.log(`💡 AI 크롭/틸팅 완료! [${CLASS_NAME_KR[predictedClass]}] | 각도: ${angle_deg.toFixed(1)}도 보정 ${predictedClass === 5 ? '| 상하반전됨' : ''}`);
             resolve({ classId: predictedClass, croppedFileName: croppedFileName });
           } catch (error) {
             console.error("자동 크롭 저장 실패:", error);
