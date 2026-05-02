@@ -5,13 +5,8 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-// data.yaml 기반 매핑
 const INDEX_TO_CLASS_ID = { 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 };
-
-// 점 순서 (원장님 data.yaml 설정)
-const KP_MID = 0; 
-const KP_M1  = 1; 
-const KP_M2  = 2; 
+const KP_MID = 0; // AI가 뱉는 Midline 번호 (좌/우측용)
 
 let session = null;
 
@@ -53,8 +48,7 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         }
 
         const tensor = new ort.Tensor('float32', floatData, [1, 3, IMG_SIZE, IMG_SIZE]);
-        const feeds = { [sess.inputNames[0]]: tensor };
-        const results = await sess.run(feeds);
+        const results = await sess.run({ [sess.inputNames[0]]: tensor });
         const output = results[sess.outputNames[0]].data; 
         const dims = results[sess.outputNames[0]].dims; 
 
@@ -91,100 +85,96 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           });
         }
 
-        // 🔥 원장님의 완벽한 룰 기반 각도 계산 로직
+        let valid_kps = kps.filter(kp => kp.conf > 0.1);
         let angle_rad = 0;
-        let is_flip_x = false; // 좌우반전 플래그
+        let is_flip_x = false;
 
-        let pMid = kps[KP_MID];
-        let pM1  = kps[KP_M1]; // 정면의 경우 Left
-        let pM2  = kps[KP_M2]; // 정면의 경우 Right
+        // 🔥 1. 상악/하악/정면 (3개 점) - 좁은 악궁(V-shape) 완벽 대응!
+        if ((predictedClass === 1 || predictedClass === 5 || predictedClass === 3) && valid_kps.length >= 3) {
+          let pts = valid_kps.slice(0, 3);
+          let min_diff = Infinity;
+          let mid_idx = -1;
 
-        // 1. 상악(1) / 하악(5)
-        if (predictedClass === 1 || predictedClass === 5) {
-          if (pM1.conf > 0.1 && pM2.conf > 0.1) {
-            // 화면상 무조건 왼쪽, 오른쪽을 나눠서 1차 수평을 잡음
-            let leftMolar  = pM1.x < pM2.x ? pM1 : pM2;
-            let rightMolar = pM1.x < pM2.x ? pM2 : pM1;
-            angle_rad = Math.atan2(rightMolar.y - leftMolar.y, rightMolar.x - leftMolar.x);
+          // '이등변 삼각형 원리': 나머지 두 점과의 거리 차이가 가장 작은 점이 정중선(Midline)이다!
+          for (let i = 0; i < 3; i++) {
+            let p_candidate = pts[i];
+            let others = pts.filter((_, idx) => idx !== i);
+            let d1 = Math.hypot(p_candidate.x - others[0].x, p_candidate.y - others[0].y);
+            let d2 = Math.hypot(p_candidate.x - others[1].x, p_candidate.y - others[1].y);
+            let diff = Math.abs(d1 - d2);
 
-            if (pMid.conf > 0.1) {
-              let mx = (leftMolar.x + rightMolar.x) / 2;
-              let my = (leftMolar.y + rightMolar.y) / 2;
-              // 회전 시켰다고 가정했을 때 midline의 상대적 Y위치 확인
-              let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
+            if (diff < min_diff) {
+              min_diff = diff;
+              mid_idx = i;
+            }
+          }
 
-              if (predictedClass === 1) {
-                // 상악: midline이 위(-Y)로 가야 함
-                if (rot_y > 0) angle_rad += Math.PI; 
-              } else if (predictedClass === 5) {
-                // 하악: midline이 아래(+Y)로 가야 함
-                if (rot_y < 0) angle_rad += Math.PI;
+          let pMid = pts[mid_idx]; // 확정된 정중선
+          let molars = pts.filter((_, idx) => idx !== mid_idx);
+          let leftMolar  = molars[0].x < molars[1].x ? molars[0] : molars[1];
+          let rightMolar = molars[0].x < molars[1].x ? molars[1] : molars[0];
+          
+          angle_rad = Math.atan2(rightMolar.y - leftMolar.y, rightMolar.x - leftMolar.x);
+
+          if (predictedClass === 1 || predictedClass === 5) {
+            let mx = (leftMolar.x + rightMolar.x) / 2;
+            let my = (leftMolar.y + rightMolar.y) / 2;
+            let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
+
+            if (predictedClass === 1 && rot_y > 0) { 
+              angle_rad += Math.PI; // 상악: Midline이 위(-Y)
+            } else if (predictedClass === 5) {
+              is_flip_x = true; // 하악: 좌우반전
+              if (rot_y < 0) angle_rad += Math.PI; // 하악: Midline이 아래(+Y)
+            }
+          }
+        } 
+        // 🔥 2. 좌측/우측 (포인트 2개일 때만 작동, 이전 코드 오타 수정!)
+        else if (predictedClass === 2 || predictedClass === 4) {
+          if (valid_kps.length >= 2) {
+            let pMid = valid_kps.find(k => k.idx === KP_MID);
+            let pMolar = valid_kps.find(k => k.idx !== KP_MID);
+
+            if (pMid && pMolar) {
+              let current_angle = Math.atan2(pMid.y - pMolar.y, pMid.x - pMolar.x);
+              
+              if (predictedClass === 2) {
+                // 좌측: 정중선이 무조건 화면 '오른쪽(0도)'을 향해야 함 (오타 수정!)
+                angle_rad = current_angle; 
+              } else if (predictedClass === 4) {
+                // 우측: 정중선이 무조건 화면 '왼쪽(180도)'을 향해야 함
+                angle_rad = current_angle - Math.PI;
               }
             }
           }
-          if (predictedClass === 5) {
-            is_flip_x = true; // 하악은 모든 각도 계산이 끝난 후 좌우반전!
-          }
-        } 
-        // 2. 정면(3)
-        else if (predictedClass === 3) {
-          if (pM1.conf > 0.1 && pM2.conf > 0.1) {
-            // 정면은 pM1(Left)가 왼쪽, pM2(Right)가 오른쪽으로 오도록 강제 수평 배열
-            angle_rad = Math.atan2(pM2.y - pM1.y, pM2.x - pM1.x);
-          }
-        }
-        // 3. 좌측(2) / 우측(4)
-        else if (predictedClass === 2 || predictedClass === 4) {
-          let validMolar = (pM1.conf > pM2.conf) ? pM1 : pM2;
-
-          // 🔥 원장님 요청: 포인트가 2개 이상일 때만 틸팅 진행
-          if (pMid.conf > 0.1 && validMolar.conf > 0.1) {
-            let current_angle = Math.atan2(pMid.y - validMolar.y, pMid.x - validMolar.x);
-
-            if (predictedClass === 2) {
-              // 좌측: midline이 오른쪽(0도 방향)
-              angle_rad = current_angle;
-            } else if (predictedClass === 4) {
-              // 우측: midline이 왼쪽(180도 방향)
-              angle_rad = current_angle - Math.PI;
-            }
-          } else {
-            // 포인트 2개 미만이면 무리하게 돌리지 않고 0도(원본) 유지
-            angle_rad = 0; 
-          }
         }
 
-        // 다이나믹 캔버스 크기 계산
         let nw = Math.abs(w * Math.cos(angle_rad)) + Math.abs(h * Math.sin(angle_rad));
         let nh = Math.abs(w * Math.sin(angle_rad)) + Math.abs(h * Math.cos(angle_rad));
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = nw; cropCanvas.height = nh;
         const cropCtx = cropCanvas.getContext('2d');
 
-        // 🔥 변환 순서가 매우 중요합니다: 중심이동 -> 회전 -> (필요시)좌우반전 -> 그리기
         cropCtx.translate(nw / 2, nh / 2);
         cropCtx.rotate(-angle_rad);
-        if (is_flip_x) {
-          cropCtx.scale(-1, 1); // 하악 거울상 '좌우' 반전!
-        }
+        if (is_flip_x) cropCtx.scale(-1, 1); 
         cropCtx.drawImage(img, -cx, -cy, origW, origH);
 
-        // 🔍 [일시적 디버깅] 점과 정보 표시
+        // 🔍 [디버깅] 사진 캔버스 위에 점과 번호 그리기
         cropCtx.setTransform(1, 0, 0, 1, 0, 0); 
         cropCtx.fillStyle = "red";
-        cropCtx.font = "bold 20px Arial";
-        
-        kps.forEach((kp, i) => {
+        cropCtx.font = "bold 24px Arial";
+        kps.forEach((kp) => {
           if (kp.conf > 0.1) {
-            let drawX = (kp.x - (cx - w/2)); 
-            let drawY = (kp.y - (cy - h/2));
             cropCtx.beginPath();
-            cropCtx.arc(drawX, drawY, 8, 0, Math.PI * 2);
+            cropCtx.arc(kp.x - cx + nw/2, kp.y - cy + nh/2, 6, 0, Math.PI * 2);
             cropCtx.fill();
-            cropCtx.fillText(`${i}:${kp.conf.toFixed(2)}`, drawX + 10, drawY);
+            cropCtx.fillStyle = "yellow";
+            cropCtx.fillText(`${kp.idx}`, kp.x - cx + nw/2 + 10, kp.y - cy + nh/2);
+            cropCtx.fillStyle = "red";
           }
         });
-        cropCtx.strokeStyle = "yellow";
+        cropCtx.strokeStyle = "rgba(255, 255, 0, 0.5)";
         cropCtx.lineWidth = 3;
         cropCtx.strokeRect(0, 0, nw, nh);
 
