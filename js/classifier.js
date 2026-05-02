@@ -5,10 +5,10 @@ import { saveEditedImage } from "./storage.js";
 export const CLASS_NAME_KR = { 1: "상악", 2: "좌측", 3: "정면", 4: "우측", 5: "하악" };
 export const CLASS_POSITION_CSS = { 1: "pos-upper", 2: "pos-right", 3: "pos-front", 4: "pos-left", 5: "pos-lower" };
 
-//[cite: 17] data.yaml 기반 매핑
+// data.yaml 기반 매핑
 const INDEX_TO_CLASS_ID = { 0: 3, 1: 2, 2: 5, 3: 4, 4: 1 };
 
-//[cite: 14, 17] 점 순서
+// 점 순서 (원장님 data.yaml 설정)
 const KP_MID = 0; 
 const KP_M1  = 1; 
 const KP_M2  = 2; 
@@ -91,49 +91,91 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
           });
         }
 
-        // 각도 계산 로직
-        let angle_rad = 0, is_flip_y = false;
-        let pMid = kps[KP_MID], pM1 = kps[KP_M1], pM2 = kps[KP_M2];
+        // 🔥 원장님의 완벽한 룰 기반 각도 계산 로직
+        let angle_rad = 0;
+        let is_flip_x = false; // 좌우반전 플래그
 
-        if ((predictedClass === 1 || predictedClass === 5 || predictedClass === 3) && pM1.conf > 0.1 && pM2.conf > 0.1) {
-          let leftM = pM1.x < pM2.x ? pM1 : pM2;
-          let rightM = pM1.x < pM2.x ? pM2 : pM1;
-          angle_rad = Math.atan2(rightM.y - leftM.y, rightM.x - leftM.x);
-          if ((predictedClass === 1 || predictedClass === 5) && pMid.conf > 0.1) {
-            let mx = (pM1.x + pM2.x) / 2, my = (pM1.y + pM2.y) / 2;
-            let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
-            if (predictedClass === 1 && rot_y > 0) angle_rad += Math.PI;
-            else if (predictedClass === 5) { is_flip_y = true; if (rot_y > 0) angle_rad += Math.PI; }
+        let pMid = kps[KP_MID];
+        let pM1  = kps[KP_M1]; // 정면의 경우 Left
+        let pM2  = kps[KP_M2]; // 정면의 경우 Right
+
+        // 1. 상악(1) / 하악(5)
+        if (predictedClass === 1 || predictedClass === 5) {
+          if (pM1.conf > 0.1 && pM2.conf > 0.1) {
+            // 화면상 무조건 왼쪽, 오른쪽을 나눠서 1차 수평을 잡음
+            let leftMolar  = pM1.x < pM2.x ? pM1 : pM2;
+            let rightMolar = pM1.x < pM2.x ? pM2 : pM1;
+            angle_rad = Math.atan2(rightMolar.y - leftMolar.y, rightMolar.x - leftMolar.x);
+
+            if (pMid.conf > 0.1) {
+              let mx = (leftMolar.x + rightMolar.x) / 2;
+              let my = (leftMolar.y + rightMolar.y) / 2;
+              // 회전 시켰다고 가정했을 때 midline의 상대적 Y위치 확인
+              let rot_y = (pMid.x - mx) * Math.sin(-angle_rad) + (pMid.y - my) * Math.cos(-angle_rad);
+
+              if (predictedClass === 1) {
+                // 상악: midline이 위(-Y)로 가야 함
+                if (rot_y > 0) angle_rad += Math.PI; 
+              } else if (predictedClass === 5) {
+                // 하악: midline이 아래(+Y)로 가야 함
+                if (rot_y < 0) angle_rad += Math.PI;
+              }
+            }
           }
-        } else if ((predictedClass === 2 || predictedClass === 4) && pMid.conf > 0.1) {
-          let vM = pM1.conf > pM2.conf ? pM1 : pM2;
-          if (vM.conf > 0.1) {
-            let cur_a = Math.atan2(pMid.y - vM.y, pMid.x - vM.x);
-            angle_rad = (predictedClass === 2) ? cur_a : cur_a - Math.PI;
+          if (predictedClass === 5) {
+            is_flip_x = true; // 하악은 모든 각도 계산이 끝난 후 좌우반전!
+          }
+        } 
+        // 2. 정면(3)
+        else if (predictedClass === 3) {
+          if (pM1.conf > 0.1 && pM2.conf > 0.1) {
+            // 정면은 pM1(Left)가 왼쪽, pM2(Right)가 오른쪽으로 오도록 강제 수평 배열
+            angle_rad = Math.atan2(pM2.y - pM1.y, pM2.x - pM1.x);
+          }
+        }
+        // 3. 좌측(2) / 우측(4)
+        else if (predictedClass === 2 || predictedClass === 4) {
+          let validMolar = (pM1.conf > pM2.conf) ? pM1 : pM2;
+
+          // 🔥 원장님 요청: 포인트가 2개 이상일 때만 틸팅 진행
+          if (pMid.conf > 0.1 && validMolar.conf > 0.1) {
+            let current_angle = Math.atan2(pMid.y - validMolar.y, pMid.x - validMolar.x);
+
+            if (predictedClass === 2) {
+              // 좌측: midline이 오른쪽(0도 방향)
+              angle_rad = current_angle;
+            } else if (predictedClass === 4) {
+              // 우측: midline이 왼쪽(180도 방향)
+              angle_rad = current_angle - Math.PI;
+            }
+          } else {
+            // 포인트 2개 미만이면 무리하게 돌리지 않고 0도(원본) 유지
+            angle_rad = 0; 
           }
         }
 
-        // 다이나믹 캔버스[cite: 14]
+        // 다이나믹 캔버스 크기 계산
         let nw = Math.abs(w * Math.cos(angle_rad)) + Math.abs(h * Math.sin(angle_rad));
         let nh = Math.abs(w * Math.sin(angle_rad)) + Math.abs(h * Math.cos(angle_rad));
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = nw; cropCanvas.height = nh;
         const cropCtx = cropCanvas.getContext('2d');
 
+        // 🔥 변환 순서가 매우 중요합니다: 중심이동 -> 회전 -> (필요시)좌우반전 -> 그리기
         cropCtx.translate(nw / 2, nh / 2);
-        if (is_flip_y) cropCtx.scale(1, -1);
         cropCtx.rotate(-angle_rad);
+        if (is_flip_x) {
+          cropCtx.scale(-1, 1); // 하악 거울상 '좌우' 반전!
+        }
         cropCtx.drawImage(img, -cx, -cy, origW, origH);
 
         // 🔍 [일시적 디버깅] 점과 정보 표시
-        // 반전/회전된 좌표계이므로 다시 원래대로 돌려놓고 그려야 정확합니다.
-        cropCtx.setTransform(1, 0, 0, 1, 0, 0); // 좌표계 초기화
+        cropCtx.setTransform(1, 0, 0, 1, 0, 0); 
         cropCtx.fillStyle = "red";
         cropCtx.font = "bold 20px Arial";
         
         kps.forEach((kp, i) => {
           if (kp.conf > 0.1) {
-            // 박스 내 상대 좌표로 대략적인 위치 표시 (디버깅용)
             let drawX = (kp.x - (cx - w/2)); 
             let drawY = (kp.y - (cy - h/2));
             cropCtx.beginPath();
@@ -144,7 +186,7 @@ export async function classifyAndCropImage(file, dirHandle, patient, dateStr) {
         });
         cropCtx.strokeStyle = "yellow";
         cropCtx.lineWidth = 3;
-        cropCtx.strokeRect(0, 0, nw, nh); // 크롭 경계선
+        cropCtx.strokeRect(0, 0, nw, nh);
 
         cropCanvas.toBlob(async (blob) => {
           const croppedFileName = await saveEditedImage(dirHandle, patient, dateStr, file.name, blob);
